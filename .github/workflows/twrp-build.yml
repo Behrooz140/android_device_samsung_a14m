@@ -19,6 +19,11 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
+      - name: Checkout Device Tree
+        uses: actions/checkout@v4
+        with:
+          path: device_tree
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -28,18 +33,18 @@ jobs:
         run: |
           git config --global user.name "Behrooz140"
           git config --global user.email "behrooz140@local.dev"
-          mkdir -p ~/twrp && cd ~/twrp
+          mkdir -p $GITHUB_WORKSPACE/twrp && cd $GITHUB_WORKSPACE/twrp
           repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-      - name: Clone Device Tree
+      - name: Copy Device Tree to Source
         run: |
-          mkdir -p ~/twrp/device/samsung/a14m
-          cp -r $GITHUB_WORKSPACE/* ~/twrp/device/samsung/a14m/
+          mkdir -p $GITHUB_WORKSPACE/twrp/device/samsung/a14m
+          cp -r $GITHUB_WORKSPACE/device_tree/* $GITHUB_WORKSPACE/twrp/device/samsung/a14m/
 
       - name: Build Recovery Image
         run: |
-          cd ~/twrp
+          cd $GITHUB_WORKSPACE/twrp
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
           lunch twrp_a14m-eng
@@ -47,7 +52,7 @@ jobs:
 
       - name: Package for Odin (.tar)
         run: |
-          cd ~/twrp/out/target/product/a14m
+          cd $GITHUB_WORKSPACE/twrp/out/target/product/a14m
           tar -cvf TWRP-A145P-Behrooz.tar recovery.img
 
       - name: Upload Recovery Artifacts
@@ -55,5 +60,5 @@ jobs:
         with:
           name: TWRP-A145P-Recovery
           path: |
-            ~/twrp/out/target/product/a14m/recovery.img
-            ~/twrp/out/target/product/a14m/TWRP-A145P-Behrooz.tar
+            ${{ github.workspace }}/twrp/out/target/product/a14m/recovery.img
+            ${{ github.workspace }}/twrp/out/target/product/a14m/TWRP-A145P-Behrooz.tar
