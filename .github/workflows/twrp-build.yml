@@ -1,0 +1,59 @@
+name: Build TWRP Recovery for A145P
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          temp-reserve-mb: 2048
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc build-essential zip curl libstdc++6 git wget python3 clang libssl-dev repo rsync flex bison
+
+      - name: Set up Git & Sync Minimal TWRP 12.1
+        run: |
+          git config --global user.name "Behrooz140"
+          git config --global user.email "behrooz140@local.dev"
+          mkdir -p ~/twrp && cd ~/twrp
+          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+      - name: Clone Device Tree
+        run: |
+          mkdir -p ~/twrp/device/samsung/a14m
+          cp -r $GITHUB_WORKSPACE/* ~/twrp/device/samsung/a14m/
+
+      - name: Build Recovery Image
+        run: |
+          cd ~/twrp
+          export ALLOW_MISSING_DEPENDENCIES=true
+          source build/envsetup.sh
+          lunch twrp_a14m-eng
+          mka -j$(nproc --all) recoveryimage
+
+      - name: Package for Odin (.tar)
+        run: |
+          cd ~/twrp/out/target/product/a14m
+          tar -cvf TWRP-A145P-Behrooz.tar recovery.img
+
+      - name: Upload Recovery Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TWRP-A145P-Recovery
+          path: |
+            ~/twrp/out/target/product/a14m/recovery.img
+            ~/twrp/out/target/product/a14m/TWRP-A145P-Behrooz.tar
