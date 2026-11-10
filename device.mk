@@ -17,8 +17,11 @@ PRODUCT_COPY_FILES += \
 
 # Prebuilt kernel modules taken from the stock recovery ramdisk.
 # They MUST match prebuilt/kernel, otherwise display/touch/storage will not work.
+# NOTE: no spaces after the commas in $(call ...); make keeps them in the
+# arguments and the helper's regex would no longer match, producing
+# "malformed COPY_FILE" errors.
 PRODUCT_COPY_FILES += \
-    $(call find-copy-subdir-files,*, $(LOCAL_PATH)/prebuilt/modules, recovery/root/lib/modules)
+    $(call find-copy-subdir-files,*,$(LOCAL_PATH)/prebuilt/modules,recovery/root/lib/modules)
 
 # fastbootd (dynamic partitions)
 PRODUCT_PACKAGES += \

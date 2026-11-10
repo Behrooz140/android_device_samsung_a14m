@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-add_lunch_combo twrp_a14m-user
-add_lunch_combo twrp_a14m-userdebug
-add_lunch_combo twrp_a14m-eng
+# Lunch combos for this device are declared in AndroidProducts.mk via
+# COMMON_LUNCH_CHOICES, so no add_lunch_combo calls are needed here.
+# This file is intentionally a no-op; it only makes the device visible to
+# envsetup.sh's vendorsetup scan.
