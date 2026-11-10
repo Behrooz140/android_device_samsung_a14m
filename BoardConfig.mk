@@ -15,6 +15,14 @@ DEVICE_PATH := device/samsung/a14m
 # ----------------------------------------------------------------------------
 ALLOW_MISSING_DEPENDENCIES := true
 
+# The kernel modules are ELF relocatable objects (.ko) and they have to sit in
+# the recovery ramdisk at /lib/modules, so they are shipped through
+# PRODUCT_COPY_FILES (see device.mk). The build system refuses ELF files in
+# PRODUCT_COPY_FILES when the destination path contains "lib", which is exactly
+# our case, so turn that check off. This is the sanctioned switch for it
+# (check-elf-prebuilt-product-copy-files is skipped when it is true).
+BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
+
 # ----------------------------------------------------------------------------
 # Architecture
 # ----------------------------------------------------------------------------
