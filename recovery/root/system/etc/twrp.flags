@@ -1,0 +1,22 @@
+#
+# Extra fstab-format entries merged by TWRP on top of recovery.fstab.
+#
+# Keep only entries whose mount point does NOT already exist in
+# recovery.fstab, otherwise TWRP may become confused about which device
+# backs a mount point.
+#
+# ---------------------------------------------------------------------------
+# USB-OTG (test on the real device before uncommenting)
+# ---------------------------------------------------------------------------
+# The MT6768 USB stack exposes mass storage as /dev/block/sdX. Most USB
+# drives have a single partition (sdX1); some have several. Uncomment the
+# block below once you have confirmed the device nodes with `ls /dev/block`
+# while a drive is plugged in.
+#
+#/usb_otg           vfat     /dev/block/sda1  /dev/block/sda   flags=display="USB-OTG";storage;wipeing;removable;backup=1
+#/usb_otg           vfat     /dev/block/sdb1  /dev/block/sdb   flags=display="USB-OTG";storage;wipeing;removable;backup=1
+#
+# Alternative: bind-mount the whole block device instead of a partition
+# when the drive is unpartitioned:
+#
+#/usb_otg           vfat     /dev/block/sda                    flags=display="USB-OTG";storage;wipeing;removable;backup=1

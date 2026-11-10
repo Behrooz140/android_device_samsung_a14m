@@ -1,0 +1,280 @@
+#
+# GitHub Actions workflow - build TWRP for Samsung Galaxy A14 4G (a14m)
+#
+# Trigger it from the "Actions" tab (Run workflow) or by pushing a tag:
+#     git tag v1.0 && git push origin v1.0
+#
+# Outputs (Actions -> run -> Artifacts):
+#     recovery.img        - raw image
+#     twrp_a14m.tar.md5   - Odin-flashable package (AP slot)
+#     MD5SUMS.txt / SHA256SUMS.txt
+#
+name: Build TWRP (a14m)
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Build variant"
+        required: true
+        default: "eng"
+        type: choice
+        options:
+          - eng
+          - userdebug
+      target:
+        description: "Build target"
+        required: true
+        default: "recoveryimage"
+        type: choice
+        options:
+          - recoveryimage
+          - bootimage
+  push:
+    tags:
+      - "v*"
+  # Uncomment the block below if you also want a build on every push to main.
+  # Each run takes 1-2 hours of your GitHub Actions quota.
+  # push:
+  #   branches:
+  #     - main
+  #     - master
+
+permissions:
+  contents: write
+
+concurrency:
+  group: twrp-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVICE: a14m
+  VENDOR: samsung
+  TWRP_BRANCH: twrp-12.1
+  MANIFEST_URL: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
+  VARIANT: ${{ github.event.inputs.variant || 'eng' }}
+  BUILD_TARGET: ${{ github.event.inputs.target || 'recoveryimage' }}
+  ALLOW_MISSING_DEPENDENCIES: "true"
+  LC_ALL: C
+
+jobs:
+  build:
+    name: twrp_a14m (${{ github.event.inputs.variant || 'eng' }})
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout device tree
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Free disk space
+        run: |
+          set -eux
+          sudo swapoff -a || true
+          sudo rm -f /swapfile || true
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/share/boost \
+            /usr/local/lib/node_modules \
+            /opt/az || true
+          sudo apt-get clean
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache cpio curl flex \
+            g++-multilib gcc-multilib git git-lfs gnupg gperf \
+            imagemagick libelf-dev liblz4-tool libncurses-dev \
+            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop \
+            pngcrush rsync schedtool squashfs-tools xsltproc zip \
+            unzip file zlib1g-dev python3 python-is-python3 openjdk-11-jdk
+          sudo update-java-alternatives -s java-1.11.0-openjdk-amd64 || true
+          java -version
+          ccache --version | head -1
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ env.DEVICE }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ env.DEVICE }}-
+
+      - name: Configure ccache
+        run: |
+          mkdir -p "$HOME/.ccache"
+          ccache -M 2G
+          ccache -z
+
+      - name: Install repo and sync TWRP sources
+        run: |
+          set -euxo pipefail
+
+          mkdir -p "$HOME/bin" "$HOME/twrp"
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+            -o "$HOME/bin/repo"
+          chmod a+x "$HOME/bin/repo"
+          export PATH="$HOME/bin:$PATH"
+
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@users.noreply.github.com"
+          git config --global color.ui false
+
+          cd "$HOME/twrp"
+          repo init --depth=1 --no-repo-verify \
+            -u "$MANIFEST_URL" -b "$TWRP_BRANCH"
+
+          repo sync -c -j"$(nproc --all)" --force-sync \
+            --no-clone-bundle --no-tags --optimized-fetch || \
+          repo sync -c -j"$(nproc --all)" --force-sync \
+            --no-clone-bundle --no-tags
+
+          df -h
+
+      - name: Add device tree into the source tree
+        run: |
+          set -euxo pipefail
+          cd "$HOME/twrp"
+          mkdir -p "device/$VENDOR"
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='out' \
+            "$GITHUB_WORKSPACE/" "device/$VENDOR/$DEVICE/"
+          echo "--- device tree ---"
+          ls -la "device/$VENDOR/$DEVICE"
+          echo "--- prebuilts ---"
+          ls -l "device/$VENDOR/$DEVICE/prebuilt"
+          echo "--- module count ---"
+          find "device/$VENDOR/$DEVICE/prebuilt/modules" -name '*.ko' | wc -l
+
+      - name: Build TWRP
+        run: |
+          set -euxo pipefail
+          cd "$HOME/twrp"
+
+          export PATH="/usr/lib/jvm/java-11-openjdk-amd64/bin:$HOME/bin:$PATH"
+          export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
+          export USE_CCACHE=1
+          export CCACHE_DIR="$HOME/.ccache"
+          export CCACHE_EXEC="$(command -v ccache)"
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL=C
+
+          . build/envsetup.sh
+          lunch "twrp_${DEVICE}-${VARIANT}"
+          mka "$BUILD_TARGET" -j"$(nproc --all)"
+
+      - name: Save ccache
+        if: success()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ env.DEVICE }}-${{ github.run_id }}
+
+      - name: Collect outputs
+        if: success()
+        run: |
+          set -euxo pipefail
+
+          OUT="$HOME/twrp/out/target/product/$DEVICE"
+          ART="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ART"
+
+          echo "--- build output ---"
+          ls -lah "$OUT"
+
+          if [ -f "$OUT/recovery.img" ]; then
+            cp "$OUT/recovery.img" "$ART/recovery.img"
+          fi
+          if [ -f "$OUT/boot.img" ]; then
+            cp "$OUT/boot.img" "$ART/boot.img"
+          fi
+
+          # Samsung/Odin package: plain tar with the image, extension .tar.md5
+          if [ -f "$OUT/recovery.img" ]; then
+            ODIN="$RUNNER_TEMP/odin"
+            rm -rf "$ODIN"
+            mkdir -p "$ODIN"
+            cp "$OUT/recovery.img" "$ODIN/recovery.img"
+            (
+              cd "$ODIN"
+              tar -cf twrp_${DEVICE}.tar recovery.img
+              md5sum twrp_${DEVICE}.tar >> twrp_${DEVICE}.tar
+              mv twrp_${DEVICE}.tar twrp_${DEVICE}.tar.md5
+            )
+            cp "$ODIN/twrp_${DEVICE}.tar.md5" "$ART/"
+          fi
+
+          (
+            cd "$ART"
+            md5sum ./* > MD5SUMS.txt
+            sha256sum ./* > SHA256SUMS.txt
+          )
+
+          echo "--- artifacts ---"
+          ls -lah "$ART"
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twrp-${{ env.DEVICE }}-${{ github.run_number }}
+          path: ${{ github.workspace }}/artifacts/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            ~/twrp/out/verbose.log.gz
+            ~/twrp/out/error.log
+            ~/twrp/out/soong.log
+            ~/twrp/out/soong/soong.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish GitHub release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v') && success()
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/artifacts/*
+          generate_release_notes: true
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## TWRP build: twrp_${DEVICE}-${VARIANT}"
+            echo ""
+            echo "| item | value |"
+            echo "|---|---|"
+            echo "| device | \`${VENDOR}/${DEVICE}\` |"
+            echo "| manifest | \`${TWRP_BRANCH}\` |"
+            echo "| target | \`${BUILD_TARGET}\` |"
+            echo "| commit | \`${GITHUB_SHA}\` |"
+            echo "| status | \`${{ job.status }}\` |"
+            echo ""
+            if [ -d "$GITHUB_WORKSPACE/artifacts" ]; then
+              echo "### Files"
+              echo '```'
+              ls -lah "$GITHUB_WORKSPACE/artifacts" || true
+              echo '```'
+            fi
+            echo ""
+            echo "Flash \`recovery.img\` with fastboot or the \`.tar.md5\` with Odin (AP slot)."
+            echo "A patched/disabled vbmeta is required on the device, see README.md."
+          } >> "$GITHUB_STEP_SUMMARY"

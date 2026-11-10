@@ -1,0 +1,81 @@
+#
+# TWRP fstab v2 - Samsung Galaxy A14 4G (SM-A145P / a14m)
+# MediaTek MT6768 - Android 15 / One UI 7
+#
+# Partition names and mount options come from the stock recovery ramdisk:
+#   system/etc/recovery.fstab  (build A145PXXSDDZH1)
+#
+# Format:
+#   <mount point>  <fs type>  <device>  [device2]  flags=<flag>;<flag>;...
+#
+# NOTE: Every entry here is READ by TWRP. Duplicate mount points are allowed
+# only with different filesystem types (used as fallbacks).
+#
+
+# ---------------------------------------------------------------------------
+# Dynamic (logical) partitions inside super
+# ---------------------------------------------------------------------------
+/system            erofs    system                              flags=display=system;logical;backup=1
+/system            ext4     system                              flags=display=system;logical;backup=1
+
+/vendor            erofs    vendor                              flags=display=vendor;logical;backup=1
+/vendor            ext4     vendor                              flags=display=vendor;logical;backup=1
+
+/product           erofs    product                             flags=display=product;logical;backup=1
+/product           ext4     product                             flags=display=product;logical;backup=1
+
+/odm               erofs    odm                                 flags=display=odm;logical;backup=1
+/odm               ext4     odm                                 flags=display=odm;logical;backup=1
+
+/system_ext        erofs    system_ext                          flags=display=system_ext;logical;backup=1
+/system_ext        ext4     system_ext                          flags=display=system_ext;logical;backup=1
+
+/vendor_dlkm       erofs    vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1
+/vendor_dlkm       ext4     vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1
+
+/system_dlkm       erofs    system_dlkm                         flags=display=system_dlkm;logical;backup=1
+/system_dlkm       ext4     system_dlkm                         flags=display=system_dlkm;logical;backup=1
+
+/odm_dlkm          erofs    odm_dlkm                            flags=display=odm_dlkm;logical;backup=1
+/odm_dlkm          ext4     odm_dlkm                            flags=display=odm_dlkm;logical;backup=1
+
+# ---------------------------------------------------------------------------
+# Boot / recovery / bootloader helper images (flashed as raw images)
+# ---------------------------------------------------------------------------
+/boot              emmc     /dev/block/by-name/boot             flags=display=boot;backup=1;flashimg=1
+/recovery          emmc     /dev/block/by-name/recovery         flags=display=recovery;backup=1;flashimg=1
+/init_boot         emmc     /dev/block/by-name/init_boot        flags=display=init_boot;backup=1;flashimg=1
+/vendor_boot       emmc     /dev/block/by-name/vendor_boot      flags=display=vendor_boot;backup=1;flashimg=1
+/dtbo              emmc     /dev/block/by-name/dtbo             flags=display=dtbo;backup=1;flashimg=1
+/misc              emmc     /dev/block/by-name/misc             flags=display=misc
+
+# ---------------------------------------------------------------------------
+# Data / cache / metadata
+# ---------------------------------------------------------------------------
+/data              f2fs     /dev/block/by-name/userdata         flags=display=data;backup=1;wipeing=1;canbewiped;storage;length=-16384
+/cache             ext4     /dev/block/by-name/cache            flags=display=cache;backup=1;wipeing=1;canbewiped
+/metadata          ext4     /dev/block/by-name/md_udc           flags=display=metadata;wipeing=1;canbewiped
+
+# ---------------------------------------------------------------------------
+# Samsung ODE / calibration / carrier partitions
+# NEVER enable wipeing/canbewiped on efs, keydata, keyrefuge - they hold
+# IMEI and encryption key material and are not recoverable once erased.
+# ---------------------------------------------------------------------------
+/efs               ext4     /dev/block/by-name/sec_efs          flags=display=efs;backup=1
+/keydata           ext4     /dev/block/by-name/keydata          flags=display=keydata
+/keyrefuge         f2fs     /dev/block/by-name/keyrefuge        flags=display=keyrefuge
+/carrier           ext4     /dev/block/by-name/carrier          flags=display=carrier
+/prism             ext4     /dev/block/by-name/prism            flags=display=prism
+/optics            ext4     /dev/block/by-name/optics           flags=display=optics
+/preload           ext4     /dev/block/by-name/hidden           flags=display=preload
+/md1img            emmc     /dev/block/by-name/md1img           flags=display=md1img
+/spmfw             emmc     /dev/block/by-name/spmfw            flags=display=spmfw
+/scp1              emmc     /dev/block/by-name/scp1             flags=display=scp1
+/sspm_1            emmc     /dev/block/by-name/sspm_1           flags=display=sspm_1
+
+# ---------------------------------------------------------------------------
+# MicroSD card
+# Kept at /external_sd so it does not collide with the internal /sdcard
+# (which TWRP maps onto /data/media when RECOVERY_SDCARD_ON_DATA is set).
+# ---------------------------------------------------------------------------
+/external_sd       vfat     /dev/block/mmcblk1p1  /dev/block/mmcblk1  flags=display="MicroSD";storage;wipeing;removable;backup=1

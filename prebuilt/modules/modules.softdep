@@ -1,0 +1,8 @@
+# Soft dependencies extracted from modules themselves.
+softdep softdog pre: mtk_wdt
+softdep clkbuf pre: mt6685-core
+softdep clkbuf pre: mt6397
+softdep mtk_dvfsrc post: mtk-dvfsrc-regulator
+softdep mtk_dvfsrc post: mtk-dvfsrc-devfreq
+softdep mtk_dvfsrc post: mtk-emi
+softdep sec_nfc pre: i2c-exynos5
