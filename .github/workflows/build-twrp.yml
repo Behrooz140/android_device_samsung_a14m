@@ -158,7 +158,9 @@ jobs:
 
       - name: Build TWRP
         run: |
-          set -euxo pipefail
+          # NOTE: do not use `set -u` here. build/envsetup.sh (gettop, lunch,
+          # mka helpers) relies on unset/empty variables and aborts on nounset.
+          set -eo pipefail
           cd "$HOME/twrp"
 
           export PATH="/usr/lib/jvm/java-11-openjdk-amd64/bin:$HOME/bin:$PATH"
