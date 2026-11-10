@@ -100,19 +100,22 @@ jobs:
           java -version
           ccache --version | head -1
 
-      - name: Restore ccache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/.ccache
-          key: ccache-${{ env.DEVICE }}-${{ github.run_id }}
-          restore-keys: |
-            ccache-${{ env.DEVICE }}-
-
+      # Configure ccache on a writable runner directory
       - name: Configure ccache
         run: |
-          mkdir -p "$HOME/.ccache"
-          ccache -M 2G
-          ccache -z
+          set -eux
+
+          export CCACHE_DIR="$RUNNER_TEMP/ccache"
+          export CCACHE_TEMPDIR="$CCACHE_DIR/tmp"
+
+          mkdir -p "$CCACHE_TEMPDIR"
+          chmod -R u+rwX "$CCACHE_DIR"
+
+          echo "CCACHE_DIR=$CCACHE_DIR" >> "$GITHUB_ENV"
+          echo "CCACHE_TEMPDIR=$CCACHE_TEMPDIR" >> "$GITHUB_ENV"
+
+          ccache --show-config
+          ccache --show-stats
 
       - name: Install repo and sync TWRP sources
         run: |
@@ -156,6 +159,16 @@ jobs:
           echo "--- module count ---"
           find "device/$VENDOR/$DEVICE/prebuilt/modules" -name '*.ko' | wc -l
 
+      - name: Reclaim disk space
+        run: |
+          set -euxo pipefail
+          cd "$HOME/twrp"
+          # `repo` metadata is only needed for syncing; drop it before building.
+          rm -rf .repo
+          echo "--- disk usage ---"
+          df -h
+          du -sh "$HOME/twrp" 2>/dev/null || true
+
       - name: Build TWRP
         run: |
           # NOTE: do not use `set -u` here. build/envsetup.sh (gettop, lunch,
@@ -165,23 +178,12 @@ jobs:
 
           export PATH="/usr/lib/jvm/java-11-openjdk-amd64/bin:$HOME/bin:$PATH"
           export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
-          export USE_CCACHE=1
-          export CCACHE_DIR="$HOME/.ccache"
-          export CCACHE_EXEC="$(command -v ccache)"
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
 
           . build/envsetup.sh
           lunch "twrp_${DEVICE}-${VARIANT}"
           mka "$BUILD_TARGET" -j"$(nproc --all)"
-
-      - name: Save ccache
-        if: success()
-        continue-on-error: true
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.ccache
-          key: ccache-${{ env.DEVICE }}-${{ github.run_id }}
 
       - name: Collect outputs
         if: success()
