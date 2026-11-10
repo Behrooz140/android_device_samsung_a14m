@@ -56,9 +56,21 @@ BOARD_RAMDISK_OFFSET := 0x07c08000
 BOARD_KERNEL_TAGS_OFFSET := 0x0bc08000
 BOARD_KERNEL_IMAGE_NAME := Image.gz
 
+# Compress the recovery ramdisk exactly like the stock image (legacy LZ4).
+# The stock kernel has CONFIG_RD_LZ4=y and CONFIG_RD_GZIP=y, so this is not
+# strictly required, but keeping the stock format removes one variable.
+BOARD_RAMDISK_USE_LZ4 := true
+
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
+# Match the stock boot header exactly (mkbootimg defaults differ):
+#   stock dtb_addr = base + 0x0bc08000 = 0x4bc80000
+#   stock board/name = "SRPVJ12A013"
+#   stock os_version = 15.0.0, os_patch_level = 2026-07
+BOARD_MKBOOTIMG_ARGS += --dtb_offset 0x0bc08000
+BOARD_MKBOOTIMG_ARGS += --board SRPVJ12A013
+BOARD_MKBOOTIMG_ARGS += --os_version 15.0.0 --os_patch_level 2026-07
 
 TARGET_FORCE_PREBUILT_KERNEL := true
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel

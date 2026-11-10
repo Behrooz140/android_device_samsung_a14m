@@ -3,8 +3,11 @@
 درخت دستگاه (device tree) اختصاصی برای ساخت **TWRP 12.1** روی
 **Samsung Galaxy A14 4G — SM-A145P**، بر پایهٔ فایل ریکاوری استوک خودِ گوشی.
 
-> **وضعیت:** این درخت کامل ساخته شده اما **هیچ کامپایلی اجرا نشده است**.
-> دستورهای ساخت فقط برای مستندسازی در همین فایل نوشته شده‌اند.
+> **وضعیت:** بیلد روی GitHub Actions با موفقیت انجام می‌شود و فایل
+> `recovery.img`/`twrp_a14m.tar.md5` تولید می‌شود. مشکل فعلی **بوت نشدن**
+> تصویر روی گوشی است (لوگوی سامسونگ ~۱۰ ثانیه و سپس ریبوت). دو علت اصلی
+> در بخش ۶.۴ توضیح داده شده است: `vbmeta` غیرفعال‌نشده و نبودِ ماژول‌های
+> کرنل در رم‌دیسک (این نسخه هر دو اصلاح شده است).
 
 ---
 
@@ -50,8 +53,11 @@ page size      : 4096
 kernel  addr   : 0x40080000
 ramdisk addr   : 0x47C80000
 tags    addr   : 0x4BC80000
+dtb     addr   : 0x4BC80000
 cmdline        : bootopt=64S3,32N2,64N2 loop.max_part=7
 board name     : SRPVJ12A013
+os version     : 15.0.0 / 2026-07
+ramdisk format : LZ4 (legacy frame)
 ```
 
 > ماژول‌ها **باید** با `prebuilt/kernel` هم‌نسل باشند؛ اگر کرنل را عوض کنید
@@ -82,6 +88,7 @@ device/samsung/a14m/
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB / init مخصوص MTK
 │   ├── init.recovery.samsung.rc← آماده‌سازی efs
+│   ├── system/etc/init/         ← فایل‌های rc استوک (dsms, snapuserd, ...)
 │   └── system/etc/twrp.flags   ← ورودی‌های اختیاری (USB-OTG)
 └── tools/
     └── extract_from_recovery.sh← استخراج مجدد همهٔ فایل‌ها از recovery.img
@@ -160,8 +167,9 @@ out/target/product/a14m/recovery.img
   آماده می‌کند؛ منیفست `twrp-12.1` را `--depth=1` سینک می‌کند و درخت را
   داخل `device/samsung/a14m` قرار می‌دهد.
 - زمان تقریبی اجرا ۱ تا ۲ ساعت است (سقف ۶ ساعت).
-- کش `ccache` (۲ گیگابایت) بین اجراها نگه داشته می‌شود تا بیلدهای بعدی
-  سریع‌تر باشند.
+- از `ccache` عمداً استفاده نمی‌شود؛ کش `actions/cache` روی رانر خراب می‌شد
+  (`Read-only file system` روی `~/.ccache/tmp`) و چون فقط در بیلد موفق
+  ذخیره می‌شد، کمکی نمی‌کرد.
 - اگر یک تگ مثل `v1.0.0` پوش کنید:
   ```bash
   git tag v1.0.0 && git push origin v1.0.0
@@ -191,22 +199,37 @@ out/target/product/a14m/recovery.img
 5. پس از باز شدن قفل، حتماً یک بار وارد سیستم شوید و Developer options را
    دوباره بررسی کنید.
 
-### ۶.۲ غیرفعال کردن AVB
+### ۶.۲ غیرفعال کردن AVB — اجباری (علت اصلی بوت‌نشدن)
 
-`recovery.img` استوک سامسونگ با کلید سامسونگ امضا شده است. خروجی این درخت
-با **کلید تست AOSP** امضا می‌شود و بوت‌لودر آن را رد می‌کند. برای بوت شدن
-باید verify/verity غیرفعال شود:
+`recovery.img` استوک با کلید سامسونگ امضا شده و `vbmeta` گوشی نیز هشِ همان
+تصویر استوک را نگه می‌دارد. تصویری که این درخت می‌سازد با **کلید تست AOSP**
+امضا می‌شود؛ بنابراین تا وقتی `vbmeta` استوک روی گوشی است، بوت‌لودر هش را
+رد می‌کند و نتیجه دقیقاً همان چیزی است که مشاهده شد:
 
-```bash
-# یک vbmeta خالی/پچ‌شده با فلگ ۳ (disable verity + verification)
-fastboot --disable-verity --disable-verification flash vbmeta vbmeta.img
-# یا
-fastboot flash vbmeta vbmeta_disabled.img
+```
+لوگوی سامسونگ  →  حدود ۱۰ ثانیه  →  ریبوت (بدون ورود به ریکاوری)
 ```
 
-در دستگاه‌های سامسونگ اگر fastboot در دسترس نیست، از Odin/Heimdall برای
-فلش `vbmeta.img` پچ‌شده استفاده کنید. **هرگز `vbmeta` استوک را دوباره
-فلش نکنید**، چون قفل برمی‌گردد.
+روش مطمئن برای سامسونگ (بدون نیاز به fastboot):
+
+1. فریمور کامل و **دقیقاً همان بیلد** گوشی را دانلود کنید
+   (`AP_...tar.md5` از SamFW / SamMobile).
+2. اپ **Magisk** را روی گوشی نصب کنید.
+3. در Magisk: `Install` → `Select and Patch a File` → فایل
+   `AP_....tar.md5` را انتخاب کنید. Magisk هم `boot.img` و هم `vbmeta.img`
+   را پچ می‌کند (فلگ‌های verity/verification غیرفعال می‌شوند).
+4. فایل خروجی `magisk_patched-....tar` را با Odin در اسلات **AP** فلش کنید.
+   در Odin گزینهٔ `Auto Reboot` را بردارید.
+5. بعد از `PASS`، بلافاصله با `Volume Up + Power` وارد ریکاوری شوید
+   (نگذارید گوشی به سیستم استوک بوت شود).
+
+اگر روت نمی‌خواهید: از همان فایل پچ‌شده فقط `vbmeta.img` را بیرون بکشید،
+تنها همان را در یک tar بگذارید و در اسلات AP فلش کنید. در این حالت سیستم
+استوک با هستهٔ استوک بالا می‌آید و فقط قفل AVB غیرفعال می‌شود.
+
+> اگر قبلاً گوشی را با Magisk روت کرده‌اید، `vbmeta` از قبل پچ شده و این
+> مرحله را می‌توانید رد کنید. ولی اگر مطمئن نیستید، همین روش را انجام دهید؛
+> خطرش فقط تریپ‌شدن Knox است که با آنلاک‌کردن بوت‌لودر در هر حال رخ داده.
 
 ### ۶.۳ فلش ریکاوری
 
@@ -226,6 +249,35 @@ fastboot flash recovery recovery.img
 > پس از فلش، **بلافاصله** با `Volume Up + Power` (کابل جدا) وارد ریکاوری
 > شوید تا سیستم استوک فرصت بازنویسی ریکاوری را پیدا نکند.
 > در اولین ورود، `Swipe to Allow Modifications` را بزنید.
+
+### ۶.۴ اگر باز هم روی لوگو ماند
+
+ترتیب بررسی:
+
+1. **اول `vbmeta`**: تایید کنید که پچ‌شده فلش شده است. اگر `vbmeta` استوک
+   باشد، هیچ تصویر غریبه‌ای (حتی سالم) بوت نمی‌شود.
+2. **ماژول‌ها**: در رم‌دیسک باید `/lib/modules/modules.load.recovery` و ۱۹۸
+   فایل `.ko` وجود داشته باشد. این نسخهٔ درخت با `PRODUCT_COPY_FILES` و
+   `find-copy-subdir-files` آن‌ها را داخل رم‌دیسک می‌گذارد. برای بررسی
+   خروجی بدون باز کردن گوشی:
+   ```bash
+   # بعد از دانلود recovery.img از Artifact
+   python3 - <<'PY'
+   import struct
+   d = open('recovery.img','rb').read()
+   ks, = struct.unpack_from('<I', d, 8)
+   rs, = struct.unpack_from('<I', d, 16)
+   off = 4096 + ((ks + 4095)//4096)*4096
+   open('/tmp/r.ramdisk','wb').write(d[off:off+rs])
+   PY
+   lz4 -dc /tmp/r.ramdisk | cpio -t 2>/dev/null | grep -c '^lib/modules/.*\.ko$'
+   # باید 198 چاپ شود
+   ```
+3. **لاگ**: اگر TWRP بالا آمد ولی صفحه سیاه بود، با کابل به PC وصل کنید و
+   `adb devices` بزنید. اگر دستگاه دیده شد، `adb shell dmesg` و
+   `adb shell cat /tmp/recovery.log` را ذخیره کنید.
+4. اگر اصلاً adb نیامد و فقط لوگو بود، مشکل در کرنل/init اولیه است؛ در آن
+   صورت خروجی `recovery.img` را با مقدارهای هدر استوک مقایسه کنید (بخش ۲).
 
 ---
 
