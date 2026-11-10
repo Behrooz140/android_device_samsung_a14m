@@ -20,9 +20,8 @@ PRODUCT_COPY_FILES += \
 # NOTE: no spaces after the commas in $(call ...); make keeps them in the
 # arguments and the helper's regex would no longer match, producing
 # "malformed COPY_FILE" errors.
-PRODUCT_COPY_FILES += \
-    $(call find-copy-subdir-files,*,$(LOCAL_PATH)/prebuilt/modules,recovery/root/lib/modules)
-
+PRODUCT_PACKAGES += \
+    $(addprefix kernel-module-,$(basename $(notdir $(wildcard $(LOCAL_PATH)/prebuilt/modules/*.ko))))
 # fastbootd (dynamic partitions)
 PRODUCT_PACKAGES += \
     android.hardware.fastboot@1.0-impl-mock \
