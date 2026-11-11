@@ -16,8 +16,9 @@ LOG=/tmp/twrp-diag
 mkdir -p "$LOG" 2>/dev/null
 
 # Give the kernel time to finish probing (module load is done by init's first
-# stage, but i2c/touch probes can be deferred) and TWRP time to write its log.
-sleep 25
+# stage, but i2c/touch probes can be deferred) and TWRP/decrypt time to write
+# their logs. 45s also covers the ~30s tzdaemon -> keymint handshake.
+sleep 45
 
 dmesg > "$LOG/dmesg.txt" 2>/dev/null
 
@@ -79,6 +80,49 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
 } > "$LOG/diag.txt" 2>&1
 
 cp /tmp/recovery.log "$LOG/recovery.log" 2>/dev/null
+
+# The decryption attempt has its own logs; they are tiny and answer most of
+# the "why did /data not mount" questions on their own.
+for f in /tmp/decrypt.log /tmp/fstab_crypto.log; do
+  [ -f "$f" ] && cp -f "$f" "$LOG/" 2>/dev/null
+done
+for f in /tmp/tee*.log /data/vendor/tee/log/*; do
+  [ -f "$f" ] && cp -f "$f" "$LOG/" 2>/dev/null
+done
+
+{
+  echo
+  echo "== TEE / decryption =="
+  echo "-- /dev tz/tee/iw nodes"
+  ls -l /dev 2>/dev/null | grep -iE 'tz|tee|iw'
+  echo
+  echo "-- /proc/misc"
+  cat /proc/misc 2>/dev/null
+  echo
+  echo "-- tee related properties"
+  getprop 2>/dev/null | grep -iE 'tzdaemon|tzts|secureos|keymint|gatekeeper|TEEGRIS'
+  echo
+  echo "-- init service states"
+  getprop 2>/dev/null | grep -E '^\[init\.svc\.'
+  echo
+  echo "-- tee processes"
+  ps -A 2>/dev/null | grep -iE 'tz|tee_|keymint|gatekeeper|servicemanager'
+  echo
+  echo "-- /vendor/tee"
+  ls -l /vendor/tee 2>/dev/null
+  echo
+  echo "-- /mnt/vendor/efs and /efs"
+  ls -l /mnt/vendor/efs /efs 2>/dev/null
+  echo
+  echo "-- /data dirs"
+  ls -ld /data /data/vendor /data/vendor/tee /data/vendor/tee/* 2>/dev/null
+  echo
+  echo "-- metadata key"
+  ls -l /metadata/vold/metadata_encryption/key 2>/dev/null
+  echo
+  echo "-- decrypt log tail"
+  tail -100 /tmp/decrypt.log 2>/dev/null
+} >> "$LOG/diag.txt" 2>&1
 
 # Read-only peek at the small partitions (and /data), to see what is
 # mounted/readable on this device.

@@ -110,15 +110,30 @@ done
 mount_efs() {
 # a14m layout: p1 efs -> /mnt/vendor/efs (TEEGRIS /tee/srt, DAK/gakdeviceids)
 #              p2 sec_efs -> /efs (gatekeeper, DAK/keymaster)
+#
+# Both are read-write on stock: TEEGRIS writes its storage key material and
+# the gatekeeper/keymaster TA state there. TWRP mounts /efs read-only from
+# the fstab (fsflags=ro), so remount it instead of mounting a second copy.
 mkdir -p /mnt/vendor/efs /efs 2>/dev/null
-grep -q ' /mnt/vendor/efs ' /proc/mounts ||
-    mount -t ext4 -o ro /dev/block/by-name/efs /mnt/vendor/efs 2>/dev/null ||
-    mount -t ext4 -o ro,noload /dev/block/by-name/efs /mnt/vendor/efs 2>/dev/null
-grep -q ' /efs ' /proc/mounts ||
-    mount -t ext4 -o ro /dev/block/by-name/sec_efs /efs 2>/dev/null ||
-    mount -t ext4 -o ro,noload /dev/block/by-name/sec_efs /efs 2>/dev/null
+for pair in "/dev/block/by-name/efs:/mnt/vendor/efs" \
+            "/dev/block/by-name/sec_efs:/efs"; do
+    dev="${pair%%:*}"
+    mp="${pair##*:}"
+    if grep -q " ${mp} " /proc/mounts; then
+        mount -o remount,rw "${mp}" 2>/dev/null
+    else
+        mount -t ext4 "${dev}" "${mp}" 2>/dev/null ||
+            mount -t ext4 -o noload "${dev}" "${mp}" 2>/dev/null
+    fi
+done
 mkdir -p /mnt/vendor/efs/tee /efs/gatekeeper /dev/socket/iwt/ca 2>/dev/null
 chmod 0770 /dev/socket/iwt /dev/socket/iwt/ca 2>/dev/null
+
+# tzdaemon keeps its secure storage in /data/vendor/tee and needs the srt and
+# log directories to exist before it starts. /data is not decrypted yet, so
+# this is the ramdisk (tmpfs) copy - that is all the daemon needs to come up.
+mkdir -p /data/vendor/tee/srt /data/vendor/tee/log 2>/dev/null
+chmod 0700 /data/vendor/tee /data/vendor/tee/srt 2>/dev/null
 }
 
 stack_up() {

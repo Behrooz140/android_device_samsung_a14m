@@ -18,25 +18,31 @@
 # are read-only and a read-write mount(2) fails with EACCES ("Permission
 # denied"). With fsflags=ro TWRP passes MS_RDONLY and the mount succeeds.
 #
+# wipeingui is needed as well: TWRP hard-codes logical partitions as not
+# wipable ("Is_Super ? false : true") while parsing the device column, and
+# only later applies flags=, so this is the one way to list them in Advanced
+# Wipe. Wiping the filesystem itself only works when the super metadata is
+# writable; to restore a partition use Install Image -> <partition> instead.
+#
 
 # ---------------------------------------------------------------------------
 # Dynamic (logical) partitions inside super
 # ---------------------------------------------------------------------------
-/system            erofs    system                              flags=display=system;logical;backup=1;flashimg=1;fsflags=ro
+/system            erofs    system                              flags=display=system;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/vendor            erofs    vendor                              flags=display=vendor;logical;backup=1;flashimg=1;fsflags=ro
+/vendor            erofs    vendor                              flags=display=vendor;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/product           erofs    product                             flags=display=product;logical;backup=1;flashimg=1;fsflags=ro
+/product           erofs    product                             flags=display=product;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/odm               erofs    odm                                 flags=display=odm;logical;backup=1;flashimg=1;fsflags=ro
+/odm               erofs    odm                                 flags=display=odm;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/system_ext        erofs    system_ext                          flags=display=system_ext;logical;backup=1;flashimg=1;fsflags=ro
+/system_ext        erofs    system_ext                          flags=display=system_ext;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/vendor_dlkm       erofs    vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1;flashimg=1;fsflags=ro
+/vendor_dlkm       erofs    vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/system_dlkm       erofs    system_dlkm                         flags=display=system_dlkm;logical;backup=1;flashimg=1;fsflags=ro
+/system_dlkm       erofs    system_dlkm                         flags=display=system_dlkm;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
-/odm_dlkm          erofs    odm_dlkm                            flags=display=odm_dlkm;logical;backup=1;flashimg=1;fsflags=ro
+/odm_dlkm          erofs    odm_dlkm                            flags=display=odm_dlkm;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 
 # ---------------------------------------------------------------------------
 # Boot / recovery / bootloader helper images (flashed as raw images)

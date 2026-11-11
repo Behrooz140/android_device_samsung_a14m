@@ -22,7 +22,11 @@ if [ -e "${KEYDIR}/key/encrypted_key" ]; then
         awk '
             $1 == "/data" && $0 !~ /^[[:space:]]*#/ {
                 if ($4 ~ /^flags=/) {
-                    $4 = $4 ";fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized;keydirectory=/metadata/vold/metadata_encryption;inlinecrypt"
+                    # no ";inlinecrypt" here: TWRP does not know that token and
+                    # logs "E:Unhandled flag: 'inlinecrypt'" (the "libencryb"
+                    # error seen on screen) while the kernel flag lives inside
+                    # the fileencryption value above already
+                    $4 = $4 ";fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized;keydirectory=/metadata/vold/metadata_encryption"
                 }
                 print; next
             }
