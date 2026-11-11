@@ -15,6 +15,15 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/init.recovery.samsung.rc:recovery/root/init.recovery.samsung.rc \
     $(LOCAL_PATH)/recovery/root/system/etc/twrp.flags:recovery/root/system/etc/twrp.flags
 
+# Himax HX83112 touch firmware.  himax_ic_HX83112_o22.ko calls
+# request_firmware() for these names and the stock cmdline already contains
+# firmware_class.path=/vendor/firmware.  In stock recovery /vendor comes from
+# the super partition, but TWRP does not mount /vendor, so the files have to
+# live in the recovery ramdisk itself (they were extracted from vendor.img).
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/recovery/root/vendor/firmware/hx83112f_txd_boe_firmware.bin:recovery/root/vendor/firmware/hx83112f_txd_boe_firmware.bin \
+    $(LOCAL_PATH)/recovery/root/vendor/firmware/hx83112f_txd_boe_mpfw.bin:recovery/root/vendor/firmware/hx83112f_txd_boe_mpfw.bin
+
 # Prebuilt kernel modules taken from the stock recovery ramdisk.
 # They MUST match prebuilt/kernel, otherwise display/touch/storage will not work
 # (mediatek-drm, lcd_*, touch_common, ufs-mediatek ... are all modules on this

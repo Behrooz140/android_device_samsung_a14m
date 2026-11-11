@@ -37,6 +37,9 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== module count =="
   grep -c '^' /proc/modules 2>/dev/null
   echo
+  echo "== /vendor/firmware =="
+  ls -l /vendor/firmware 2>/dev/null
+  echo
   echo "== /proc/bus/input/devices =="
   cat /proc/bus/input/devices
   echo
