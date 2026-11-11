@@ -59,6 +59,9 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== i2c buses / devices =="
   ls /sys/bus/i2c/devices 2>/dev/null
   echo
+  echo "== block devices (mmcblk*) =="
+  ls -l /dev/block/mmcblk* 2>/dev/null
+  echo
   echo "== mounts =="
   cat /proc/mounts
   echo
@@ -71,6 +74,19 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
 
 cp /tmp/recovery.log "$LOG/recovery.log" 2>/dev/null
 
+cat > "$LOG/README.txt" <<'EOT'
+TWRP touch diagnostics
+======================
+
+diag.txt         Everything that matters: dmesg, input devices, loaded
+                 modules, i2c devices, mounts.
+recovery.log     TWRP's own log from this boot.
+dmesg.txt        Raw kernel log.
+SAVED-TO.txt     Where this folder was copied to.
+
+Just send diag.txt (and recovery.log if it is not empty).
+EOT
+
 # Where did we manage to save?
 : > "$LOG/SAVED-TO.txt"
 
@@ -82,15 +98,37 @@ if [ -d /sdcard ] && touch /sdcard/.twrp-diag-test 2>/dev/null; then
   echo "/sdcard/twrp-diag" >> "$LOG/SAVED-TO.txt"
 fi
 
-# 2) microSD card
-mkdir -p /mnt/sd 2>/dev/null
-if mount -t vfat -o rw /dev/block/mmcblk1p1 /mnt/sd 2>/dev/null || \
-   mount -t vfat -o rw /dev/block/mmcblk1 /mnt/sd 2>/dev/null; then
-  mkdir -p /mnt/sd/twrp-diag 2>/dev/null
-  cp -f "$LOG"/* /mnt/sd/twrp-diag/ 2>/dev/null
-  echo "microSD:/twrp-diag" >> "$LOG/SAVED-TO.txt"
-  sync
-  umount /mnt/sd 2>/dev/null
+# 2) microSD card - use it if TWRP already mounted it, otherwise mount it
+#    ourselves, trying every filesystem a card may come formatted with.
+sd_done=0
+for m in /external_sd /mnt/sd; do
+  if [ -d "$m" ] && touch "$m/.twrp-diag-test" 2>/dev/null; then
+    rm -f "$m/.twrp-diag-test"
+    mkdir -p "$m/twrp-diag" 2>/dev/null
+    cp -f "$LOG"/* "$m/twrp-diag/" 2>/dev/null
+    echo "microSD(already mounted):$m/twrp-diag" >> "$LOG/SAVED-TO.txt"
+    sync
+    sd_done=1
+    break
+  fi
+done
+if [ "$sd_done" = "0" ]; then
+  for fs in exfat vfat ext4; do
+    for dev in /dev/block/mmcblk1p1 /dev/block/mmcblk1; do
+      [ -e "$dev" ] || continue
+      mkdir -p /mnt/sd 2>/dev/null
+      if mount -t "$fs" -o rw "$dev" /mnt/sd 2>/dev/null; then
+        mkdir -p /mnt/sd/twrp-diag 2>/dev/null
+        cp -f "$LOG"/* /mnt/sd/twrp-diag/ 2>/dev/null
+        echo "microSD($fs on $dev):/twrp-diag" >> "$LOG/SAVED-TO.txt"
+        sync
+        umount /mnt/sd 2>/dev/null
+        sd_done=1
+        break
+      fi
+    done
+    [ "$sd_done" = "1" ] && break
+  done
 fi
 
 # 3) /cache - already mounted by TWRP, or mount it ourselves
