@@ -74,6 +74,33 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
 
 cp /tmp/recovery.log "$LOG/recovery.log" 2>/dev/null
 
+# Read-only peek at the small partitions (and /data), to see what is
+# mounted/readable on this device.
+for spec in "sec_efs:/efs" "optics:/optics" "prism:/prism" "carrier:/carrier" "hidden:/preload" "keydata:/keydata" "md_udc:/metadata"; do
+  dev=${spec%%:*}
+  mp=${spec##*:}
+  m=/mnt/ro_$dev
+  mkdir -p "$m" 2>/dev/null
+  if mount -o ro "/dev/block/by-name/$dev" "$m" 2>/dev/null; then
+    {
+      echo
+      echo "== $mp (read-only) =="
+      ls -l "$m"
+      df -h "$m" 2>/dev/null
+    } >> "$LOG/diag.txt" 2>&1
+    umount "$m" 2>/dev/null
+  fi
+done
+mkdir -p /mnt/ro_data 2>/dev/null
+if mount -t f2fs -o ro /dev/block/by-name/userdata /mnt/ro_data 2>/dev/null; then
+  {
+    echo
+    echo "== /data (read-only, raw) =="
+    ls -la /mnt/ro_data
+  } >> "$LOG/diag.txt" 2>&1
+  umount /mnt/ro_data 2>/dev/null
+fi
+
 cat > "$LOG/README.txt" <<'EOT'
 TWRP touch diagnostics
 ======================
@@ -150,6 +177,16 @@ if [ "$saved_cache" = "0" ]; then
   fi
 fi
 [ "$saved_cache" = "1" ] && echo "/cache/twrp-diag" >> "$LOG/SAVED-TO.txt"
+
+# 4) /metadata - unencrypted ext4, survives reboot
+mkdir -p /mnt/metadata 2>/dev/null
+if mount -t ext4 -o rw /dev/block/by-name/md_udc /mnt/metadata 2>/dev/null; then
+  mkdir -p /mnt/metadata/twrp-diag 2>/dev/null
+  cp -f "$LOG"/* /mnt/metadata/twrp-diag/ 2>/dev/null
+  echo "/metadata/twrp-diag" >> "$LOG/SAVED-TO.txt"
+  sync
+  umount /mnt/metadata 2>/dev/null
+fi
 
 # Make the result visible in dmesg too, in case nothing was writable.
 echo "twrp-diag: saved to: $(tr '\n' ' ' < "$LOG/SAVED-TO.txt")" > /dev/kmsg 2>/dev/null
