@@ -171,7 +171,12 @@ TW_INCLUDE_REPACKTOOLS := true
 TW_INCLUDE_LIBRESETPROP := true
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_NTFS_3G := true
+TW_INCLUDE_LPTOOLS := true
 TW_EXCLUDE_TWRPAPP := true
+# TWRP's APEX loop-mount loader fails on this 6.6 kernel ("Value too large for
+# defined data type" -> twrp.apex.loaded=false). Nothing here needs APEX libs,
+# so skip it entirely instead of logging errors.
+TW_EXCLUDE_APEX := true
 RECOVERY_SDCARD_ON_DATA := true
 
 # ----------------------------------------------------------------------------

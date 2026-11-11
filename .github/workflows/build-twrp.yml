@@ -159,6 +159,21 @@ jobs:
           echo "--- module count ---"
           find "device/$VENDOR/$DEVICE/prebuilt/modules" -name '*.ko' | wc -l
 
+      - name: Apply TWRP patches
+        run: |
+          set -euxo pipefail
+          cd "$HOME/twrp"
+          shopt -s nullglob
+          patches=(device/"$VENDOR"/"$DEVICE"/patches/*.patch)
+          if [ ${#patches[@]} -eq 0 ]; then
+            echo "no patches to apply"
+            exit 0
+          fi
+          for p in "${patches[@]}"; do
+            echo "--- applying $(basename "$p") ---"
+            patch -p1 --forward --fuzz=3 -d bootable/recovery < "$p"
+          done
+
       - name: Reclaim disk space
         run: |
           set -euxo pipefail
