@@ -4,6 +4,11 @@ on init
     setprop sys.usb.ffs.aio_compat 0
 
 on fs
+    # these are plain files in the device tree, and the ramdisk builder's
+    # fs_config has no entry for /system/tee, so they are packed 0644
+    chmod 0755 /system/tee/bin/dmctl
+    chmod 0755 /system/tee/bin/service
+    chmod 0755 /system/tee/bin/servicemanager
     # runs before the recovery binary parses the fstab, so one image serves
     # encrypted and plain firmware (metadata encryption adds keydirectory= to /data)
     exec_start fstab-crypto

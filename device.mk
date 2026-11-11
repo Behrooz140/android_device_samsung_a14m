@@ -9,6 +9,11 @@ LOCAL_PATH := device/samsung/a14m
 # Dynamic partitions (super)
 PRODUCT_USE_DYNAMIC_PARTITIONS := true
 
+# The device tree carries its own Soong namespace (Android.bp at the root), so
+# the modules defined in decrypt/Android.bp (langsdorff_decrypt, gk_verify) are
+# only visible to the product when the directory is listed here.
+PRODUCT_SOONG_NAMESPACES += device/samsung/a14m
+
 # Recovery ramdisk files (destination is relative to $(PRODUCT_OUT))
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/init.recovery.mt6768.rc:recovery/root/init.recovery.mt6768.rc \
