@@ -44,3 +44,11 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PACKAGES += \
     android.hardware.fastboot@1.0-impl-mock \
     fastbootd
+
+# /data decryption (FBE v2 + metadata encryption) and diagnostics. crash_dump
+# installs as crash_dump64; without it an abort in the recovery binary leaves
+# nothing but "Fatal signal 6" in the log.
+PRODUCT_PACKAGES += \
+    langsdorff_decrypt \
+    crash_dump \
+    gk_verify

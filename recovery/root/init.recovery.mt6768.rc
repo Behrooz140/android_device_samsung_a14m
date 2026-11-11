@@ -3,6 +3,11 @@ on init
     setprop sys.usb.controller "musb-hdrc"
     setprop sys.usb.ffs.aio_compat 0
 
+on fs
+    # runs before the recovery binary parses the fstab, so one image serves
+    # encrypted and plain firmware (metadata encryption adds keydirectory= to /data)
+    exec_start fstab-crypto
+
 on fs && property:ro.debuggable=0
     # distinguish USB shoulde connect or not, i.e. CDP vs SDP
     write /sys/class/udc/musb-hdrc/device/cmode 2
@@ -20,6 +25,13 @@ on post-fs
 
     exec u:r:update_engine:s0 root root -- /system/bin/mtk_plpath_utils
 
+on boot
+    setprop servicemanager.ready true
+    setprop twrp.decrypt.run 1
+
+on property:twrp.decrypt.run=1
+    start decrypt
+
 # ---------------------------------------------------------------------------
 # Diagnostic helper: dumps touch/input/module/dmesg info to /sdcard, microSD
 # and /cache shortly after TWRP has started.  See sbin/twrp-diag.sh.
@@ -32,3 +44,82 @@ service twrpdiag /system/bin/sh /sbin/twrp-diag.sh
     user root
     group root
     seclabel u:r:recovery:s0
+
+# ---------------------------------------------------------------------------
+# /data decryption (FBE v2 + metadata encryption).
+#
+# The 12.1 fscrypt code wants a keymaster 4 HIDL HAL, but this firmware only
+# has KeyMint AIDL V1. These services run only what talks to the TEE: the
+# TEEGRIS daemons, servicemanager, KeyMint and gatekeeper, using the Android 15
+# libraries carried in /system/tee. The actual unlock is done by
+# langsdorff_decrypt, driven from decrypt.sh (see the patches).
+#
+# The tee-* services are oneshot: one that cannot run on this vendor would
+# otherwise restart every 5 seconds for good.
+# ---------------------------------------------------------------------------
+# runs before the recovery binary parses the fstab, so one image serves encrypted and plain firmware
+service fstab-crypto /system/bin/fstab_crypto.sh
+    user root
+    group root system
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+service decrypt /system/bin/decrypt.sh
+    class main
+    user root
+    group root system
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+# TEEGRIS hashes the exec'd image, so these two must not go through the bootstrap linker
+service tee-tzdaemon /vendor/bin/tzdaemon
+    class main
+    user root
+    group root system readproc
+    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib64/hw
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+service tee-tzts /vendor/bin/tzts_daemon
+    class main
+    user root
+    group root system
+    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib64/hw
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+service tee-servicemanager /system/bin/hal_run.sh /system/tee/bin/servicemanager
+    class core
+    user root
+    group root readproc
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+service tee-keymint /system/bin/hal_run.sh /vendor/bin/hw/android.hardware.security.keymint-service
+    class main
+    user root
+    group root system drmrpc
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+service tee-gatekeeper /system/bin/hal_run.sh /vendor/bin/hw/android.hardware.gatekeeper@1.0-service
+    class main
+    user root
+    group root system
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
+# keeps the userdata anchor busy so nothing short of data_release.sh unmounts it
+service userdata-hold /system/bin/sh -c "cd /tmp/.userdata && exec sleep 2147483647"
+    user root
+    group root
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled

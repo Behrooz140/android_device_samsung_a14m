@@ -1,0 +1,36 @@
+// System binaries because the 12.1 tree has no recovery variant of these libs;
+// TW_RECOVERY_ADDITIONAL_RELINK_BINARY_FILES puts them in the ramdisk.
+cc_binary {
+    name: "langsdorff_decrypt",
+    srcs: ["langsdorff_decrypt.cpp"],
+    shared_libs: [
+        "libbinder_ndk",
+        "libcrypto",
+        "liblog",
+    ],
+    static_libs: [
+        // a GSI's libsqlite needs ICU symbols from an APEX the recovery cannot load
+        "libsqlite_static_minimal",
+        "android.hardware.security.keymint-V1-ndk_platform",
+        "android.hardware.security.secureclock-V1-ndk_platform",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}
+
+cc_binary {
+    name: "gk_verify",
+    srcs: ["gk_verify.cpp"],
+    shared_libs: [
+        "android.hardware.gatekeeper@1.0",
+        "libhidlbase",
+        "liblog",
+        "libutils",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}

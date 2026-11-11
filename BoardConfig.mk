@@ -118,6 +118,8 @@ BOARD_SAMSUNG_DYNAMIC_PARTITIONS_SIZE := 9122611200
 # Recovery
 # ----------------------------------------------------------------------------
 TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery.fstab
+# recovery/root is copied into the ramdisk (scripts, TEE stack, init rc files)
+TARGET_RECOVERY_DEVICE_DIRS += $(DEVICE_PATH)
 TARGET_RECOVERY_PIXEL_FORMAT := BGRA_8888
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
@@ -180,13 +182,18 @@ TW_EXCLUDE_APEX := true
 RECOVERY_SDCARD_ON_DATA := true
 
 # ----------------------------------------------------------------------------
-# Crypto (FBE / metadata) - disabled on purpose
+# Crypto (FBE + metadata encryption)
 # ----------------------------------------------------------------------------
-# Samsung One UI uses hardware-wrapped FBE keys (KeyMint/TEE). Decryption needs
-# Samsung's proprietary KeyMint/tee libraries from vendor.img and is not
-# included here. Enable these only after adding the matching blobs:
-#
-# TW_INCLUDE_CRYPTO := true
-# TW_INCLUDE_CRYPTO_FBE := true
-# TW_INCLUDE_FBE_METADATA_DECRYPT := true
-# TW_USE_FSCRYPT_POLICY := 2
+# The 12.1 fscrypt code in TWRP wants a keymaster 4 HIDL HAL, but this device
+# only has KeyMint AIDL V1. The firmware's own security stack (TEEGRIS, KeyMint,
+# gatekeeper) is started from recovery/root/system/tee, and the actual unlock is
+# done by langsdorff_decrypt (decrypt/). Crypto stays on so TWRP treats /data as
+# FBE and shows the password prompt.
+TW_INCLUDE_CRYPTO := true
+TW_INCLUDE_CRYPTO_FBE := true
+# TWRP's own metadata decrypt path hangs waiting for keystore2 on this device
+TW_INCLUDE_FBE_METADATA_DECRYPT := false
+# libtar defaults to fscrypt policy V2; nothing to override here
+TW_RECOVERY_ADDITIONAL_RELINK_BINARY_FILES += $(TARGET_OUT_EXECUTABLES)/langsdorff_decrypt
+TW_RECOVERY_ADDITIONAL_RELINK_BINARY_FILES += $(TARGET_OUT_EXECUTABLES)/gk_verify
+TW_RECOVERY_ADDITIONAL_RELINK_BINARY_FILES += $(TARGET_OUT_EXECUTABLES)/crash_dump64
