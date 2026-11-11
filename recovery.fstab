@@ -61,17 +61,21 @@
 /metadata          ext4     /dev/block/by-name/md_udc           flags=display=metadata;wipeingui;canbewiped
 
 # ---------------------------------------------------------------------------
-# Samsung ODE / calibration / carrier partitions
-# NEVER enable wipeingui/canbewiped on efs, keydata, keyrefuge - they hold
-# IMEI and encryption key material and are not recoverable once erased.
+# Samsung ODE / calibration partitions
+#
+# NEVER enable wipeingui/canbewiped on efs, persist or nvdata - they hold IMEI,
+# radio calibration and sensor data and are not recoverable once erased.
+# They are mounted read-only (fsflags=ro) and exposed only for backup.
+#
+# Removed on purpose (do not re-add):
+#   keydata (p28) / keyrefuge (p27) - zeroed, no filesystem on this unit
+#   carrier / preload (hidden)       - partition does not exist on a14m
 # ---------------------------------------------------------------------------
-/efs               ext4     /dev/block/by-name/sec_efs          flags=display=efs;backup=1
-/keydata           ext4     /dev/block/by-name/keydata          flags=display=keydata
-/keyrefuge         f2fs     /dev/block/by-name/keyrefuge        flags=display=keyrefuge
-/carrier           ext4     /dev/block/by-name/carrier          flags=display=carrier
+/efs               ext4     /dev/block/by-name/sec_efs          flags=display=efs;backup=1;fsflags=ro
+/persist           ext4     /dev/block/by-name/persist          flags=display=persist;backup=1;fsflags=ro
+/nvdata            ext4     /dev/block/by-name/nvdata           flags=display=nvdata;backup=1;fsflags=ro
 /prism             ext4     /dev/block/by-name/prism            flags=display=prism
 /optics            ext4     /dev/block/by-name/optics           flags=display=optics
-/preload           ext4     /dev/block/by-name/hidden           flags=display=preload
 /md1img            emmc     /dev/block/by-name/md1img           flags=display=md1img
 /spmfw             emmc     /dev/block/by-name/spmfw            flags=display=spmfw
 /scp1              emmc     /dev/block/by-name/scp1             flags=display=scp1
