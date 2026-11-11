@@ -62,6 +62,9 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== block devices (mmcblk*) =="
   ls -l /dev/block/mmcblk* 2>/dev/null
   echo
+  echo "== /dev/block/by-name =="
+  ls -l /dev/block/by-name 2>/dev/null
+  echo
   echo "== mounts =="
   cat /proc/mounts
   echo
@@ -81,7 +84,7 @@ for spec in "sec_efs:/efs" "optics:/optics" "prism:/prism" "carrier:/carrier" "h
   mp=${spec##*:}
   m=/mnt/ro_$dev
   mkdir -p "$m" 2>/dev/null
-  if mount -o ro "/dev/block/by-name/$dev" "$m" 2>/dev/null; then
+  if mount -t ext4 -o ro "/dev/block/by-name/$dev" "$m" 2>/dev/null; then
     {
       echo
       echo "== $mp (read-only) =="
@@ -179,13 +182,24 @@ fi
 [ "$saved_cache" = "1" ] && echo "/cache/twrp-diag" >> "$LOG/SAVED-TO.txt"
 
 # 4) /metadata - unencrypted ext4, survives reboot
-mkdir -p /mnt/metadata 2>/dev/null
-if mount -t ext4 -o rw /dev/block/by-name/md_udc /mnt/metadata 2>/dev/null; then
-  mkdir -p /mnt/metadata/twrp-diag 2>/dev/null
-  cp -f "$LOG"/* /mnt/metadata/twrp-diag/ 2>/dev/null
-  echo "/metadata/twrp-diag" >> "$LOG/SAVED-TO.txt"
+saved_meta=0
+if [ -d /metadata ] && touch /metadata/.twrp-diag-test 2>/dev/null; then
+  rm -f /metadata/.twrp-diag-test
+  mkdir -p /metadata/twrp-diag 2>/dev/null
+  cp -f "$LOG"/* /metadata/twrp-diag/ 2>/dev/null
+  echo "/metadata/twrp-diag (already mounted)" >> "$LOG/SAVED-TO.txt"
   sync
-  umount /mnt/metadata 2>/dev/null
+  saved_meta=1
+fi
+if [ "$saved_meta" = "0" ]; then
+  mkdir -p /mnt/metadata 2>/dev/null
+  if mount -t ext4 -o rw /dev/block/by-name/md_udc /mnt/metadata 2>/dev/null; then
+    mkdir -p /mnt/metadata/twrp-diag 2>/dev/null
+    cp -f "$LOG"/* /mnt/metadata/twrp-diag/ 2>/dev/null
+    echo "/metadata/twrp-diag (mounted by helper)" >> "$LOG/SAVED-TO.txt"
+    sync
+    umount /mnt/metadata 2>/dev/null
+  fi
 fi
 
 # Make the result visible in dmesg too, in case nothing was writable.
