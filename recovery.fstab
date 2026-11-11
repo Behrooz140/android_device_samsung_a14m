@@ -8,36 +8,35 @@
 # Format:
 #   <mount point>  <fs type>  <device>  [device2]  flags=<flag>;<flag>;...
 #
-# NOTE: Every entry here is READ by TWRP. Duplicate mount points are allowed
-# only with different filesystem types (used as fallbacks).
+# NOTE: TWRP chooses the real filesystem at mount time (blkid probe), so one
+# entry per mount point is enough. Duplicate mount points are NOT supported
+# in this (v1-style) format: the extra line becomes a second partition with
+# the same mount point and confuses TWRP.
+#
+# fsflags=ro is REQUIRED on every logical (super) partition: Samsung marks
+# them read-only in the super metadata (liblp attr 0x1), so TWRP's dm devices
+# are read-only and a read-write mount(2) fails with EACCES ("Permission
+# denied"). With fsflags=ro TWRP passes MS_RDONLY and the mount succeeds.
 #
 
 # ---------------------------------------------------------------------------
 # Dynamic (logical) partitions inside super
 # ---------------------------------------------------------------------------
-/system            erofs    system                              flags=display=system;logical;backup=1
-/system            ext4     system                              flags=display=system;logical;backup=1
+/system            erofs    system                              flags=display=system;logical;backup=1;fsflags=ro
 
-/vendor            erofs    vendor                              flags=display=vendor;logical;backup=1
-/vendor            ext4     vendor                              flags=display=vendor;logical;backup=1
+/vendor            erofs    vendor                              flags=display=vendor;logical;backup=1;fsflags=ro
 
-/product           erofs    product                             flags=display=product;logical;backup=1
-/product           ext4     product                             flags=display=product;logical;backup=1
+/product           erofs    product                             flags=display=product;logical;backup=1;fsflags=ro
 
-/odm               erofs    odm                                 flags=display=odm;logical;backup=1
-/odm               ext4     odm                                 flags=display=odm;logical;backup=1
+/odm               erofs    odm                                 flags=display=odm;logical;backup=1;fsflags=ro
 
-/system_ext        erofs    system_ext                          flags=display=system_ext;logical;backup=1
-/system_ext        ext4     system_ext                          flags=display=system_ext;logical;backup=1
+/system_ext        erofs    system_ext                          flags=display=system_ext;logical;backup=1;fsflags=ro
 
-/vendor_dlkm       erofs    vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1
-/vendor_dlkm       ext4     vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1
+/vendor_dlkm       erofs    vendor_dlkm                         flags=display=vendor_dlkm;logical;backup=1;fsflags=ro
 
-/system_dlkm       erofs    system_dlkm                         flags=display=system_dlkm;logical;backup=1
-/system_dlkm       ext4     system_dlkm                         flags=display=system_dlkm;logical;backup=1
+/system_dlkm       erofs    system_dlkm                         flags=display=system_dlkm;logical;backup=1;fsflags=ro
 
-/odm_dlkm          erofs    odm_dlkm                            flags=display=odm_dlkm;logical;backup=1
-/odm_dlkm          ext4     odm_dlkm                            flags=display=odm_dlkm;logical;backup=1
+/odm_dlkm          erofs    odm_dlkm                            flags=display=odm_dlkm;logical;backup=1;fsflags=ro
 
 # ---------------------------------------------------------------------------
 # Boot / recovery / bootloader helper images (flashed as raw images)
@@ -51,14 +50,19 @@
 
 # ---------------------------------------------------------------------------
 # Data / cache / metadata
+#
+# /data uses Android metadata encryption (dm-default-key): the raw userdata
+# blocks are encrypted with a key stored in /metadata, so it can only be
+# mounted after setting up dm-default-key (requires crypto support). Do not
+# expect /data to mount while crypto is disabled.
 # ---------------------------------------------------------------------------
-/data              f2fs     /dev/block/by-name/userdata         flags=display=data;backup=1;wipeing=1;canbewiped;storage;length=-16384
-/cache             ext4     /dev/block/by-name/cache            flags=display=cache;backup=1;wipeing=1;canbewiped
-/metadata          ext4     /dev/block/by-name/md_udc           flags=display=metadata;wipeing=1;canbewiped
+/data              f2fs     /dev/block/by-name/userdata         flags=display=data;backup=1;wipeingui;canbewiped;storage;length=-16384
+/cache             ext4     /dev/block/by-name/cache            flags=display=cache;backup=1;wipeingui;canbewiped
+/metadata          ext4     /dev/block/by-name/md_udc           flags=display=metadata;wipeingui;canbewiped
 
 # ---------------------------------------------------------------------------
 # Samsung ODE / calibration / carrier partitions
-# NEVER enable wipeing/canbewiped on efs, keydata, keyrefuge - they hold
+# NEVER enable wipeingui/canbewiped on efs, keydata, keyrefuge - they hold
 # IMEI and encryption key material and are not recoverable once erased.
 # ---------------------------------------------------------------------------
 /efs               ext4     /dev/block/by-name/sec_efs          flags=display=efs;backup=1
@@ -78,4 +82,4 @@
 # Kept at /external_sd so it does not collide with the internal /sdcard
 # (which TWRP maps onto /data/media when RECOVERY_SDCARD_ON_DATA is set).
 # ---------------------------------------------------------------------------
-/external_sd       vfat     /dev/block/mmcblk1p1  /dev/block/mmcblk1  flags=display="MicroSD";storage;wipeing;removable;backup=1
+/external_sd       vfat     /dev/block/mmcblk1p1  /dev/block/mmcblk1  flags=display="MicroSD";storage;wipeingui;removable;backup=1

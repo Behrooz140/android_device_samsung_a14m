@@ -13,10 +13,10 @@
 # block below once you have confirmed the device nodes with `ls /dev/block`
 # while a drive is plugged in.
 #
-#/usb_otg           vfat     /dev/block/sda1  /dev/block/sda   flags=display="USB-OTG";storage;wipeing;removable;backup=1
-#/usb_otg           vfat     /dev/block/sdb1  /dev/block/sdb   flags=display="USB-OTG";storage;wipeing;removable;backup=1
+#/usb_otg           vfat     /dev/block/sda1  /dev/block/sda   flags=display="USB-OTG";storage;wipeingui;removable;backup=1
+#/usb_otg           vfat     /dev/block/sdb1  /dev/block/sdb   flags=display="USB-OTG";storage;wipeingui;removable;backup=1
 #
 # Alternative: bind-mount the whole block device instead of a partition
 # when the drive is unpartitioned:
 #
-#/usb_otg           vfat     /dev/block/sda                    flags=display="USB-OTG";storage;wipeing;removable;backup=1
+#/usb_otg           vfat     /dev/block/sda                    flags=display="USB-OTG";storage;wipeingui;removable;backup=1
