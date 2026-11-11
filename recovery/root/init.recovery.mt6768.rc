@@ -19,3 +19,16 @@ on post-fs
     symlink /dev/block/mmcblk0boot1 /dev/block/by-name/preloader_b
 
     exec u:r:update_engine:s0 root root -- /system/bin/mtk_plpath_utils
+
+# ---------------------------------------------------------------------------
+# Diagnostic helper: dumps touch/input/module/dmesg info to /sdcard, microSD
+# and /cache shortly after TWRP has started.  See sbin/twrp-diag.sh.
+# Harmless for normal use; remove this block (and sbin/twrp-diag.sh) once
+# touch works.
+# ---------------------------------------------------------------------------
+service twrpdiag /system/bin/sh /sbin/twrp-diag.sh
+    class default
+    oneshot
+    user root
+    group root
+    seclabel u:r:recovery:s0
