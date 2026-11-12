@@ -1,0 +1,95 @@
+diff --git a/data.cpp b/data.cpp
+index 0078524..f001ea3 100644
+--- a/data.cpp
++++ b/data.cpp
+@@ -22,6 +22,8 @@
+ #include <sstream>
+ #include <fstream>
+ #include <cctype>
++#include <dirent.h>
++#include <string.h>
+ #include <cutils/properties.h>
+ #include <unistd.h>
+ 
+@@ -564,6 +566,50 @@ void DataManager::SetBackupFolder()
+ 	}
+ }
+ 
++// Returns the sysfs file that reports the CPU temperature.
++//
++// TWRP's built-in default is thermal_zone0, but the zone order is not fixed:
++// on MT6768 (a14m) zone0 is mtk-master-charger and always reads 0, while the
++// real CPU zone is called mtktscpu (and moves between zone numbers).  Prefer
++// TW_CUSTOM_CPU_TEMP_PATH when the device tree sets one, then look for the
++// MediaTek CPU zone by name, so the value no longer depends on the order in
++// which the thermal zones were probed.
++static string Get_CPU_Temp_File() {
++#ifdef TW_CUSTOM_CPU_TEMP_PATH
++	string custom = EXPAND(TW_CUSTOM_CPU_TEMP_PATH);
++	if (TWFunc::Path_Exists(custom))
++		return custom;
++#endif
++
++	string fallback;
++	DIR* dir = opendir("/sys/class/thermal");
++	if (dir != NULL) {
++		struct dirent* de;
++		while ((de = readdir(dir)) != NULL) {
++			if (strncmp(de->d_name, "thermal_zone", 12) != 0)
++				continue;
++			string base = string("/sys/class/thermal/") + de->d_name;
++			string type_file = base + "/type";
++			string temp_file = base + "/temp";
++			string type;
++			if (!TWFunc::Path_Exists(temp_file) || TWFunc::read_file(type_file, type) != 0)
++				continue;
++			while (!type.empty() && (type[type.size() - 1] == '\n' || type[type.size() - 1] == ' '))
++				type.erase(type.size() - 1);
++			if (type == "mtktscpu" || type == "mtkcput" || type == "cpu" || type == "cpu-therm") {
++				closedir(dir);
++				return temp_file;
++			}
++			if (fallback.empty() && type.find("cpu") != string::npos)
++				fallback = temp_file;
++		}
++		closedir(dir);
++	}
++	if (!fallback.empty())
++		return fallback;
++	return "/sys/class/thermal/thermal_zone0/temp";
++}
++
+ void DataManager::SetDefaultValues()
+ {
+ 	string str, path;
+@@ -651,12 +697,7 @@ void DataManager::SetDefaultValues()
+ 	printf("TW_NO_CPU_TEMP := true\n");
+ 	mConst.SetValue("tw_no_cpu_temp", "1");
+ #else
+-	string cpu_temp_file;
+-#ifdef TW_CUSTOM_CPU_TEMP_PATH
+-	cpu_temp_file = EXPAND(TW_CUSTOM_CPU_TEMP_PATH);
+-#else
+-	cpu_temp_file = "/sys/class/thermal/thermal_zone0/temp";
+-#endif
++	string cpu_temp_file = Get_CPU_Temp_File();
+ 	if (TWFunc::Path_Exists(cpu_temp_file)) {
+ 		mConst.SetValue("tw_no_cpu_temp", "0");
+ 	} else {
+@@ -1033,15 +1074,9 @@ int DataManager::GetMagicValue(const string& varName, string& value)
+ 		gettimeofday(&curTime, NULL);
+ 		if (curTime.tv_sec > cpuSecCheck)
+ 		{
+-#ifdef TW_CUSTOM_CPU_TEMP_PATH
+-			cpu_temp_file = EXPAND(TW_CUSTOM_CPU_TEMP_PATH);
++			cpu_temp_file = Get_CPU_Temp_File();
+ 			if (TWFunc::read_file(cpu_temp_file, results) != 0)
+ 				return -1;
+-#else
+-			cpu_temp_file = "/sys/class/thermal/thermal_zone0/temp";
+-			if (TWFunc::read_file(cpu_temp_file, results) != 0)
+-				return -1;
+-#endif
+ 			convert_temp = strtoul(results.c_str(), NULL, 0) / 1000;
+ 			if (convert_temp <= 0)
+ 				convert_temp = strtoul(results.c_str(), NULL, 0);

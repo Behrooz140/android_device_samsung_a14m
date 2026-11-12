@@ -31,6 +31,10 @@
 | پاک‌کردن فایل‌سیستم روی `super` | ⚠️ | متادیتای `super` سامسونگ فقط‌خواندنی است |
 | Backup پارتیشن‌های منطقی | ❌ (عمدی) | TWRP برای `super` بکاپ را می‌بندد؛ از ایمیج استوک استفاده کنید |
 | `Reboot → Recovery` | ✅ | پچ ۰۰۱۳ + نوشتن مستقیم BCB |
+| `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴: اجرای مجدد خود TWRP با `--fastboot` |
+| دمای CPU در نوار بالا | ✅ | پچ ۰۰۱۶: پیدا کردن زون `mtktscpu` با نام |
+| ویبره (هپتیک) | ✅ | پچ ۰۰۱۷: انتخاب تریگر LED `transient` |
+| پاک‌کردن Dalvik / ART Cache | ⚠️ | پچ ۰۰۱۵؛ `/cache` پاک می‌شود، `dalvik-cache` داخل `/data` رمزنگاری‌شده در دسترس نیست |
 | `Reboot → System` | ✅ | |
 | fastbootd / repacktools / lptools | ✅ | |
 | رمزگشایی `/data` | ❌ | بوت‌لودر در حالت ریکاوری TEE را بالا نمی‌آورد |
@@ -121,7 +125,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← تعریف langsdorff_decrypt و gk_verify
 │   ├── langsdorff_decrypt.cpp  ← بازکردن FBE v2 + متادیتا با KeyMint
 │   └── gk_verify.cpp           ← تأیید رمز با gatekeeper هیدل ۱.۰
-├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۳)
+├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۷)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB، TEE، سرویس decrypt، diag
 │   ├── init.recovery.samsung.rc← آماده‌سازی efs
@@ -384,7 +388,41 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
 `/sdcard/twrp-diag/rebootrecovery.log` (یا `/external_sd/twrp-diag/` و
 `/cache/twrp-diag/`) موجود است.
 
-### ۸.۵ حافظهٔ داخلی و MicroSD
+### ۸.۵ ریبوت به Fastboot، دمای CPU، ویبره و Dalvik
+
+**`Reboot → Fastboot`** (پچ ۰۰۱۴): init برای هدف `fastboot` هم باید BCB
+بنویسد و همان مشکل بخش ۸.۴ را دارد؛ پس دوباره «ریبوت نرم» می‌شد.
+fastbootd داخل همین باینری `recovery` است و فقط آرگومان `--fastboot`
+می‌خواهد؛ بنابراین TWRP به‌جای تکیه بر init، خودش را با
+`execl("/system/bin/recovery", "recovery", "--fastboot")` دوباره اجرا
+می‌کند. کرنل عوض نمی‌شود، init همان PID را زنده می‌بیند و مستقیم وارد
+صفحهٔ Fastboot می‌شوید.
+
+**دمای CPU** (پچ ۰۰۱۶): TWRP به‌طور پیش‌فرض `/sys/class/thermal/thermal_zone0/temp`
+را می‌خواند؛ در این گوشی zone0 همان `mtk-master-charger` است و همیشه ۰
+برمی‌گرداند. پچ حالا بین همهٔ `thermal_zone*` دنبال `type` برابر
+`mtktscpu` (و بعد `mtkcput`/`cpu`/هر چیزی که `cpu` دارد) می‌گردد و مسیر
+درست را برمی‌گرداند، پس شمارهٔ زون مهم نیست و دمای واقعی (مثلاً ۵۱°C)
+نمایش داده می‌شود.
+
+**ویبره** (پچ ۰۰۱۷): فایل‌های `duration`، `activate` و `state` مربوط به
+تریگر LED با نام `transient` هستند، نه خود درایور
+`regulator-vibrator`. اندروید در بوت عادی با lights HAL این تریگر را
+انتخاب می‌کند، ولی در ریکاوری هیچ‌کس انتخاب نمی‌کند؛ در نتیجه این
+فایل‌ها اصلاً وجود ندارند و TWRP بی‌صدا هیچ چیز نمی‌نوشت. پچ پیش از
+نوشتن، تریگر `transient` را انتخاب می‌کند و اگر در دسترس نبود به
+`/sys/class/timed_output/vibrator/enable` و سپس به `brightness` برمی‌گردد.
+
+**Dalvik / ART Cache** (پچ ۰۰۱۵): تابع `Wipe_Dalvik_Cache()` با شکست
+مانت `/data` کل عملیات را `false` برمی‌گرداند و فقط پیام کلی
+«Failed to wipe dalvik» می‌داد. حالا ابتدا مسیرهای `/cache/recovery/…`
+پاک می‌شوند و اگر `/data` مانت نشود، پیام دقیق «Unable to mount /data»
+نمایش داده می‌شود و بقیهٔ عملیات Wipe ادامه پیدا می‌کند. خودِ
+`dalvik-cache` داخل `/data` رمزنگاری‌شده است و تا وقتی ریکاوری نمی‌تواند
+`/data` را باز کند (بخش ۹) قابل پاک‌کردن نیست؛ پاک‌کردن کامل آن فقط از
+داخل اندروید (با root) یا پس از فعال‌شدن رمزگشایی ممکن است.
+
+### ۸.۶ حافظهٔ داخلی و MicroSD
 
 - MicroSD روی `/external_sd` مانت می‌شود و با exFAT، vfat و ext4 کار
   می‌کند؛ TWRP هنگام مانت خودش فایل‌سیستم را تشخیص می‌دهد.
@@ -392,7 +430,7 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
   (`RECOVERY_SDCARD_ON_DATA := true`) و فقط وقتی `/data` مانت شده باشد
   در دسترس است. بکاپ‌ها را روی MicroSD بگذارید.
 
-### ۸.۶ ابزارهای همراه
+### ۸.۷ ابزارهای همراه
 
 `fastbootd`, `repacktools`, `lptools`, `resetprop`/`libresetprop`,
 `ntfs-3g` و `TW_EXCLUDE_TWRPAPP` در `BoardConfig.mk` فعال/غیرفعال
@@ -401,7 +439,7 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
 `twrp.apex.loaded=false` تولید می‌کرد؛ هیچ‌چیز در این ریکاوری به
 کتابخانه‌های APEX نیاز ندارد.
 
-### ۸.۷ لاگ تشخیصی
+### ۸.۸ لاگ تشخیصی
 
 سرویس `twrpdiag` (oneshot، از `init.recovery.mt6768.rc`) اسکریپت
 `/sbin/twrp-diag.sh` را اجرا می‌کند. حدود ۴۵ ثانیه پس از بوت، این
@@ -418,7 +456,9 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
 فایل‌های مهم:
 
 - `diag.txt` — dmesg، ماژول‌های لودشده، دستگاه‌های ورودی/i2c، مانت‌ها،
-  وضعیت TEE و رمزگشایی، و ۱۲۸ بایت اول `misc`/`boot_para`/`para`
+  وضعیت TEE و رمزگشایی، همهٔ زون‌های حرارتی، وضعیت ویبره (تریگر و
+  `duration`/`activate`/`state`)، تنظیمات هپتیک/دمای TWRP، و ۱۲۸ بایت
+  اول `misc`/`boot_para`/`para`
 - `recovery.log` — لاگ خود TWRP
 - `last_kmsg.txt` — لاگ کرنل نشست قبل (برای بررسی ریبوت)
 - `rebootrecovery.log` — شاهد نوشتن BCB
@@ -483,6 +523,10 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | صفحه سیاه ولی `adb devices` جواب می‌دهد | روشنایی/پنل یا ماژول | `diag.txt` و `TW_BRIGHTNESS_PATH` را بررسی کنید |
 | تاچ کار نمی‌کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
 | `Reboot → Recovery` بدون لوگو و سریع | BCB نوشته نشده | `misc` را در `diag.txt` ببینید؛ نسخهٔ دارای پچ ۰۰۱۳ را فلش کنید |
+| `Reboot → Fastboot` باز TWRP را بالا می‌آورد | init/BCB و فست‌بوت‌د | نسخهٔ دارای پچ ۰۰۱۴ را فلش کنید |
+| دمای CPU همیشه ۰ | خواندن `thermal_zone0` (شارژر) | پچ ۰۰۱۶؛ `diag.txt` را ببینید |
+| ویبره در ریکاوری کار نمی‌کند | تریگر `transient` انتخاب نشده | پچ ۰۰۱۷؛ مقدار `trigger` را در `diag.txt` ببینید |
+| Dalvik پاک نمی‌شود یا «Failed to wipe dalvik» | `/data` مانت نمی‌شود | پچ ۰۰۱۵؛ `dalvik-cache` داخل `/data` رمزنگاری‌شده بدون رمزگشایی در دسترس نیست |
 | `/data` مانت نمی‌شود | رمزنگاری متادیتا | طبیعی است؛ بخش ۹ |
 | پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
 | `E:Unhandled flag: 'inlinecrypt'` | توکن ناشناخته در fstab | `inlinecrypt` را به `/data` اضافه نکنید |
@@ -511,10 +555,28 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | `0011-remount-data-under-stale-sdcard-bind` | رفع bind کهنهٔ `/sdcard` روی `/data` |
 | `0012-keep-logical-wipe-flags` | احترام به `wipeingui` برای پارتیشن‌های `super` |
 | `0013-direct-reboot-recovery` | `LINUX_REBOOT_CMD_RESTART2` مستقیم برای Reboot→Recovery |
+| `0014-direct-fastboot-restart` | اجرای مجدد `recovery --fastboot` در همان PID برای Reboot→Fastboot |
+| `0015-dalvik-without-data` | پاک‌کردن Dalvik بدون شکست وقتی `/data` مانت نیست |
+| `0016-autodetect-cpu-temp-zone` | پیدا کردن زون حرارتی CPU با `type` به‌جای `thermal_zone0` |
+| `0017-enable-leds-vibrator-trigger` | انتخاب تریگر `transient` و fallbackهای ویبره |
 
 ---
 
 ## ۱۲) تغییرات
+
+### بیلد ۲۱ — `3857260`
+
+- پچ ۰۰۱۴: **Reboot → Fastboot** با اجرای مجدد `recovery --fastboot`
+  در همان PID درست شد؛ دیگر ریبوت نرم به TWRP نداریم.
+- پچ ۰۰۱۵: **Wipe Dalvik** دیگر با نبود `/data` کل عملیات را fail
+  نمی‌کند؛ مسیرهای `/cache` پاک می‌شوند و پیام دقیق «Unable to mount
+  /data» نمایش داده می‌شود.
+- پچ ۰۰۱۶: دمای CPU با تشخیص زون `mtktscpu` (و fallbackهای نام‌محور)
+  به‌جای `thermal_zone0` نمایش داده می‌شود.
+- پچ ۰۰۱۷: ویبره با انتخاب تریگر LED `transient` در ریکاوری کار
+  می‌کند؛ fallback به `timed_output` و `brightness`.
+- `twrp-diag.sh`: افزودن زون‌های حرارتی، وضعیت ویبره/تریگر، ماژول‌های
+  ویبره و تنظیمات هپتیک و دمای TWRP به `diag.txt`.
 
 ### بیلد ۲۰ — `363347a`
 

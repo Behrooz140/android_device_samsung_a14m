@@ -1,0 +1,30 @@
+diff --git a/twrp-functions.cpp b/twrp-functions.cpp
+index 1a404c6..33bcbb3 100644
+--- a/twrp-functions.cpp
++++ b/twrp-functions.cpp
+@@ -653,7 +653,24 @@ int TWFunc::tw_reboot(RebootCommand command)
+ 			check_and_run_script("/system/bin/rebootedl.sh", "reboot edl");
+ 			return property_set(ANDROID_RB_PROPERTY, "reboot,edl");
+ 		case rb_fastboot:
+-			return property_set(ANDROID_RB_PROPERTY, "reboot,fastboot");
++			// Samsung a14m: "reboot,fastboot" makes init write a
++			// "boot-fastboot" bootloader control block and then reboot to
++			// recovery.  Both steps fail here: init cannot parse TWRP's
++			// /etc/recovery.fstab, so write_bootloader_message() returns
++			// without rebooting and init restarts the recovery service,
++			// which looks like a soft reboot.
++			//
++			// fastbootd is part of this same recovery binary and only
++			// needs the --fastboot argument (startupArgs then switches
++			// USB to fastboot).  Re-exec ourselves instead of rebooting:
++			// the kernel is identical, init keeps the same service pid,
++			// and nothing depends on the bootloader control block.
++			LOGINFO("Restarting recovery in fastboot mode...\n");
++			sync();
++			execl("/system/bin/recovery", "recovery", "--fastboot", (char*)NULL);
++			// Only reached if exec failed; let init restart us normally.
++			LOGERR("Unable to exec recovery --fastboot: %s\n", strerror(errno));
++			return -1;
+ 		default:
+ 			return -1;
+ 	}

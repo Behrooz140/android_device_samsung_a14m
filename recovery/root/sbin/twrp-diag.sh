@@ -78,6 +78,42 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== mounts =="
   cat /proc/mounts
   echo
+  echo "== thermal zones =="
+  for z in /sys/class/thermal/thermal_zone*; do
+    [ -e "$z/temp" ] || continue
+    echo "$z type=$(cat "$z/type" 2>/dev/null) temp=$(cat "$z/temp" 2>/dev/null)"
+  done
+  echo
+  echo "== vibrator =="
+  ls -l /sys/class/leds/vibrator 2>/dev/null
+  echo "-- trigger"
+  cat /sys/class/leds/vibrator/trigger 2>/dev/null
+  echo
+  for f in duration activate state brightness max_brightness; do
+    echo "-- $f: $(cat /sys/class/leds/vibrator/$f 2>/dev/null)"
+  done
+  echo "-- timed_output"
+  ls -l /sys/class/timed_output/vibrator 2>/dev/null
+  echo "-- loaded vibrator modules"
+  grep -i vibr /proc/modules 2>/dev/null
+  echo "-- after selecting the transient trigger (as TWRP does)"
+  echo transient > /sys/class/leds/vibrator/trigger 2>/dev/null
+  ls /sys/class/leds/vibrator 2>/dev/null
+  for f in duration activate state; do
+    echo "-- $f: $(cat /sys/class/leds/vibrator/$f 2>/dev/null)"
+  done
+  echo "-- dmesg vibrator"
+  dmesg 2>/dev/null | grep -iE 'regulator_vibrator|vibr enable|vibr disable' | tail -50
+  echo
+  echo "== TWRP settings (haptics / CPU temp) =="
+  for f in /sdcard/TWRP/.twrps /external_sd/TWRP/.twrps /cache/TWRP/.twrps /tmp/.twrps; do
+    [ -f "$f" ] || continue
+    echo "-- $f (printable strings, .twrps is binary)"
+    tr -c '[:print:]' '\n' < "$f" 2>/dev/null | grep -v '^$' | head -80
+    echo
+  done
+  grep -aE 'tw_(button|keyboard|action)_vibrate|tw_disable_haptics|tw_no_cpu_temp|CPU temperature|thermal' /tmp/recovery.log 2>/dev/null | tail -30
+  echo
   echo "== touch related dmesg =="
   dmesg 2>/dev/null | grep -iE 'hx83112|himax|hbtp|touch|tpd|input:|firmware|panel' | tail -300
   echo

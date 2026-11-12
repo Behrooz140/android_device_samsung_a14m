@@ -1,0 +1,28 @@
+diff --git a/partitionmanager.cpp b/partitionmanager.cpp
+index 2766b4c..c0b92e3 100755
+--- a/partitionmanager.cpp
++++ b/partitionmanager.cpp
+@@ -1670,10 +1670,19 @@ int TWPartitionManager::Wipe_Dalvik_Cache(void) {
+ 	struct stat st;
+ 	vector <string> dir;
+ 
+-	if (!Mount_By_Path("/data", true))
+-		return false;
+-
+-	dir.push_back("/data/dalvik-cache");
++	// /data holds the real dalvik-cache, but it cannot always be mounted
++	// (on this device it is metadata-encrypted and the key needs the TEE,
++	// which is not available when booting the recovery partition).  A
++	// failed /data mount must not abort the whole wipe: the cache-side
++	// directories (and /sd-ext, when present) can still be cleaned, and
++	// the user must be told why /data was skipped instead of getting a
++	// bare "Failed to wipe dalvik".
++	if (Mount_By_Path("/data", true)) {
++		dir.push_back("/data/dalvik-cache");
++	} else {
++		LOGINFO("Wipe_Dalvik_Cache: /data is not mounted, skipping /data/dalvik-cache\n");
++		gui_msg(Msg(msg::kError, "unable_to_mount=Unable to mount {1}")("/data"));
++	}
+ 
+ 	std::string cacheDir = TWFunc::get_log_dir();
+ 	if (cacheDir == CACHE_LOGS_DIR) {
