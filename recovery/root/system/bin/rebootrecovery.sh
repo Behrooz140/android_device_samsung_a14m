@@ -1,11 +1,45 @@
 #!/system/bin/sh
-# TWRP's "Reboot to recovery" only sets sys.powerctl=reboot,recovery and
-# relies on the bootloader honouring the kernel reboot reason. Samsung's LK
-# does not do that on this device and ends up in a warm "soft" reboot.
-# Write the Android bootloader control block command as well; LK checks it on
-# the next boot. TWRP clears the block during startup, so it cannot leak into
-# a later normal boot.
+# Samsung Galaxy A14 4G (a14m): TWRP runs from the recovery partition.
+#
+# TWRP's "Reboot to recovery" normally relies on init: it writes the Android
+# bootloader control block and then restarts the kernel with the reason
+# "recovery".  On this device init cannot do the BCB write, because TWRP
+# replaces /etc/recovery.fstab with its own (non-fs_mgr) format, so
+# read/write_bootloader_message() fail.  init then aborts the reboot and init
+# simply restarts TWRP, which looks like a "soft reboot".
+#
+# So write the BCB here ourselves, verify it, and leave evidence on the SD
+# card.  tw_reboot() then performs the restart syscall directly (patch 0013).
 MISC=/dev/block/by-name/misc
-[ -e "${MISC}" ] || exit 0
-printf 'boot-recovery' | dd of="${MISC}" bs=1 count=13 conv=notrunc 2>/dev/null
+OUT=/tmp/rebootrecovery.log
+: > "$OUT"
+
+{
+	echo "== date =="
+	date
+	echo "== misc =="
+	ls -l "$MISC" 2>&1
+} >> "$OUT" 2>&1
+
+if [ ! -e "$MISC" ]; then
+	echo "misc partition not found" >> "$OUT"
+else
+	# command[32] and status[32] belong to us; recovery[768] is left alone.
+	dd if=/dev/zero of="$MISC" bs=1 count=64 conv=notrunc 2>>"$OUT"
+	printf 'boot-recovery' | dd of="$MISC" bs=1 count=13 conv=notrunc 2>>"$OUT"
+	sync
+	echo "-- misc[0..63] after write --" >> "$OUT"
+	dd if="$MISC" bs=1 count=64 2>/dev/null | od -An -tx1 >> "$OUT" 2>&1
+	echo "-- command string --" >> "$OUT"
+	dd if="$MISC" bs=1 count=13 2>/dev/null >> "$OUT" 2>&1
+	echo >> "$OUT"
+fi
+
+# Keep the evidence across the reboot: the next TWRP start clears the BCB.
+for d in /sdcard/twrp-diag /external_sd/twrp-diag /cache/twrp-diag; do
+	if mkdir -p "$d" 2>/dev/null; then
+		cp -f "$OUT" "$d/" 2>/dev/null
+		cp -f /tmp/recovery.log "$d/recovery-before-reboot.log" 2>/dev/null
+	fi
+done
 sync

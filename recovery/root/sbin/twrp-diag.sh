@@ -69,6 +69,12 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== /dev/block/by-name =="
   ls -l /dev/block/by-name 2>/dev/null
   echo
+  echo "== misc / boot_para / para (first 128 bytes) =="
+  for d in misc boot_para para; do
+    echo "-- $d"
+    dd if=/dev/block/by-name/$d bs=1 count=128 2>/dev/null | od -An -tx1
+  done
+  echo
   echo "== mounts =="
   cat /proc/mounts
   echo
@@ -80,6 +86,10 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
 } > "$LOG/diag.txt" 2>&1
 
 cp /tmp/recovery.log "$LOG/recovery.log" 2>/dev/null
+# Evidence from the previous session: the kernel log at the moment of the
+# failed/successful "Reboot to recovery", and what the reboot script wrote.
+cp /proc/last_kmsg "$LOG/last_kmsg.txt" 2>/dev/null
+cp /tmp/rebootrecovery.log "$LOG/" 2>/dev/null
 
 # The decryption attempt has its own logs; they are tiny and answer most of
 # the "why did /data not mount" questions on their own.
@@ -159,6 +169,8 @@ diag.txt         Everything that matters: dmesg, input devices, loaded
                  modules, i2c devices, mounts.
 recovery.log     TWRP's own log from this boot.
 dmesg.txt        Raw kernel log.
+last_kmsg.txt    Kernel log of the previous boot, if the kernel kept it.
+rebootrecovery.log  Evidence that the BCB was written for Reboot->Recovery.
 SAVED-TO.txt     Where this folder was copied to.
 
 Just send diag.txt (and recovery.log if it is not empty).

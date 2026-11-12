@@ -1,0 +1,35 @@
+diff --git a/twrp-functions.cpp b/twrp-functions.cpp
+--- a/twrp-functions.cpp
++++ b/twrp-functions.cpp
+@@ -28,6 +28,7 @@
+ #include <fstab/fstab.h>
+ #include <sys/mount.h>
+ #include <sys/reboot.h>
++#include <sys/syscall.h>
+ #include <sys/sendfile.h>
+ #include <sys/stat.h>
+ #include <sys/vfs.h>
+@@ -633,7 +634,22 @@
+ #endif
+ 		case rb_recovery:
+ 			check_and_run_script("/system/bin/rebootrecovery.sh", "reboot recovery");
+-			return property_set(ANDROID_RB_PROPERTY, "reboot,recovery");
++			// Samsung a14m: init cannot complete this reboot.  For the
++			// "recovery" target init has to write the bootloader control
++			// block first, but /etc/recovery.fstab uses the TWRP format
++			// which fs_mgr cannot parse, so read/write_bootloader_message()
++			// fail and init returns without rebooting.  init then restarts
++			// the (non-oneshot) recovery service, which looks like a soft
++			// reboot.  rebootrecovery.sh has written the BCB and TWRP has
++			// synced, so perform the same LINUX_REBOOT_CMD_RESTART2 that
++			// init would have used, with the reason "recovery" that
++			// Samsung's sec_reboot driver turns into the recovery boot mode.
++			syscall(__NR_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
++					LINUX_REBOOT_CMD_RESTART2, "recovery");
++			// Only reached if the syscall was refused.  Fall back to the
++			// plain reboot path, which is known to work on this device; the
++			// BCB written above still asks the bootloader for recovery.
++			return property_set(ANDROID_RB_PROPERTY, "reboot,");
+ 		case rb_bootloader:
+ 			check_and_run_script("/system/bin/rebootbootloader.sh", "reboot bootloader");
+ 			return property_set(ANDROID_RB_PROPERTY, "reboot,bootloader");
