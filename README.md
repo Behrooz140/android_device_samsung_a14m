@@ -564,7 +564,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 
 ## ۱۲) تغییرات
 
-### بیلد ۲۱ — `3857260`
+### بیلد ۲۱ — `75e9a52`
 
 - پچ ۰۰۱۴: **Reboot → Fastboot** با اجرای مجدد `recovery --fastboot`
   در همان PID درست شد؛ دیگر ریبوت نرم به TWRP نداریم.
@@ -577,6 +577,9 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
   می‌کند؛ fallback به `timed_output` و `brightness`.
 - `twrp-diag.sh`: افزودن زون‌های حرارتی، وضعیت ویبره/تریگر، ماژول‌های
   ویبره و تنظیمات هپتیک و دمای TWRP به `diag.txt`.
+- خروجی تأییدشده (GitHub Actions run `43210526874`):
+  `recovery.img` = `385a68bf44011c9190b621e9c2297d4f`،
+  `twrp_a14m.tar.md5` = `cda7490defa69f6c86a1218cbc6ed5d3`.
 
 ### بیلد ۲۰ — `363347a`
 
