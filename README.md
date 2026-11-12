@@ -621,6 +621,14 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
   عدد نمایش‌داده‌شده دمای باتری است (بخش ۸.۵).
 - `twrp-diag.sh`: ویبره قبل و بعد از آزمون تریگر ثبت می‌شود و در پایان
   `trigger=none`/`brightness=0` بازگردانده می‌شود.
+- خروجی تأییدشده (GitHub Actions run number ۲۳، شناسهٔ `43225710875`،
+  کامیت `dabe5f4`؛ هدر بوت فقط در اندازهٔ رم‌دیسک و digest با بیلد ۲۱
+  تفاوت دارد):
+  `recovery.img` = `23e2c99b27eea82b859dc0f852bdf290`،
+  `twrp_a14m.tar.md5` = `d53f4f01d14300599c35e357fc0cbbed`.
+  در رم‌دیسک بررسی شد: `rebootfastboot.sh` (0755)، `trigger none`/
+  `brightness 0` در rc، رشتهٔ fallback باتری و `by-name/misc` در
+  کتابخانه‌ها موجود هستند.
 
 ### بیلد ۲۱ — `75e9a52`
 
