@@ -40,6 +40,9 @@
 | رمزگشایی `/data` | ❌ | بوت‌لودر در حالت ریکاوری TEE را بالا نمی‌آورد |
 | APEX | حذف‌شده | `TW_EXCLUDE_APEX := true` |
 
+موارد `Reboot → Fastboot`، ویبره و دمای باتری در بیلد ۲۳ روی گوشی تست
+شدند و با لاگ‌های MicroSD تأیید شدند (بخش ۱۲).
+
 ---
 
 ## ۲) مشخصات دستگاه
@@ -414,6 +417,13 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
    default fstab`)؛ حالا در صورت شکست به `/dev/block/by-name/misc`
    برمی‌گردد.
 
+**محدودیت fastbootd:** خودِ fastbootd هم فایل `/etc/recovery.fstab` را با
+`fs_mgr` می‌خواند و شکست می‌خورد
+(`ReadDefaultFstab(): failed to find device default fstab`). این خطا
+غیرمرگبار است و ورود/خروج و `fastboot devices` کار می‌کند، ولی
+پارتیشن‌های منطقی `super` از طریق fastboot دیده نمی‌شوند. برای فلش همان
+پارتیشن‌ها از `Install Image` خود TWRP استفاده کنید.
+
 **دمای CPU** (پچ ۰۰۱۶): TWRP به‌طور پیش‌فرض `/sys/class/thermal/thermal_zone0/temp`
 را می‌خواند؛ در این گوشی zone0 همان `mtk-master-charger` است و همیشه ۰
 برمی‌گرداند. پچ بین همهٔ `thermal_zone*` دنبال `type` برابر `mtktscpu`
@@ -629,6 +639,16 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
   در رم‌دیسک بررسی شد: `rebootfastboot.sh` (0755)، `trigger none`/
   `brightness 0` در rc، رشتهٔ fallback باتری و `by-name/misc` در
   کتابخانه‌ها موجود هستند.
+- تست روی گوشی و تأیید از لاگ‌های MicroSD:
+  - `rebootfastboot.log`: نوشتن درست `boot-recovery` و
+    `recovery\n--fastboot` در `misc`.
+  - `last_kmsg`: `init: starting service 'fastbootd'` و
+    `fastbootd: initializing functionfs`، سپس
+    `reboot: Restarting system with command 'recovery'`.
+  - dmesg: `trigger=[none]`، `brightness=0` و پالس‌های ویبرهٔ ۸۰ms فقط
+    هنگام لمس (بدون روشن‌ماندن دائمی).
+  - `diag.txt`: `thermal_zone6/7` (باتری) = ۳۶°C و پیام
+    «No CPU thermal zone in this kernel; using the battery zone».
 
 ### بیلد ۲۱ — `75e9a52`
 
