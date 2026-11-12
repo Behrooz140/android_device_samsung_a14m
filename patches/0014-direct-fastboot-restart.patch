@@ -1,30 +1,29 @@
 diff --git a/twrp-functions.cpp b/twrp-functions.cpp
-index 1a404c6..33bcbb3 100644
 --- a/twrp-functions.cpp
 +++ b/twrp-functions.cpp
-@@ -653,7 +653,24 @@ int TWFunc::tw_reboot(RebootCommand command)
+@@ -669,7 +669,24 @@
  			check_and_run_script("/system/bin/rebootedl.sh", "reboot edl");
  			return property_set(ANDROID_RB_PROPERTY, "reboot,edl");
  		case rb_fastboot:
 -			return property_set(ANDROID_RB_PROPERTY, "reboot,fastboot");
-+			// Samsung a14m: "reboot,fastboot" makes init write a
-+			// "boot-fastboot" bootloader control block and then reboot to
-+			// recovery.  Both steps fail here: init cannot parse TWRP's
-+			// /etc/recovery.fstab, so write_bootloader_message() returns
-+			// without rebooting and init restarts the recovery service,
-+			// which looks like a soft reboot.
++			check_and_run_script("/system/bin/rebootfastboot.sh", "reboot fastboot");
++			// Samsung a14m: "reboot,fastboot" cannot work.  init has to
++			// write a "boot-fastboot" bootloader control block before
++			// rebooting, but it parses /etc/recovery.fstab with fs_mgr
++			// while TWRP keeps its own format, so the BCB write fails and
++			// init restarts recovery instead.
 +			//
-+			// fastbootd is part of this same recovery binary and only
-+			// needs the --fastboot argument (startupArgs then switches
-+			// USB to fastboot).  Re-exec ourselves instead of rebooting:
-+			// the kernel is identical, init keeps the same service pid,
-+			// and nothing depends on the bootloader control block.
-+			LOGINFO("Restarting recovery in fastboot mode...\n");
-+			sync();
-+			execl("/system/bin/recovery", "recovery", "--fastboot", (char*)NULL);
-+			// Only reached if exec failed; let init restart us normally.
-+			LOGERR("Unable to exec recovery --fastboot: %s\n", strerror(errno));
-+			return -1;
++			// rebootfastboot.sh writes the BCB itself, then we restart with
++			// the reason "recovery" exactly like Reboot->Recovery does.  On
++			// the next boot TWRP reads that BCB (patch 0018 adds the
++			// /dev/block/by-name/misc fallback) and enters fastboot mode as
++			// a freshly started process, so no GUI state or inherited file
++			// descriptors can interfere.
++			syscall(__NR_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
++					LINUX_REBOOT_CMD_RESTART2, "recovery");
++			// Only reached if the syscall was refused; the BCB is already
++			// written, so a plain reboot is the least surprising fallback.
++			return property_set(ANDROID_RB_PROPERTY, "reboot,");
  		default:
  			return -1;
  	}

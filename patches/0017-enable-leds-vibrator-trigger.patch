@@ -1,5 +1,5 @@
 diff --git a/minuitwrp/events.cpp b/minuitwrp/events.cpp
-index e497df6..1c7d552 100644
+index e497df6..9a6fc51 100644
 --- a/minuitwrp/events.cpp
 +++ b/minuitwrp/events.cpp
 @@ -63,6 +63,9 @@ static std::atomic_int vib_on_count = 0;
@@ -12,49 +12,61 @@ index e497df6..1c7d552 100644
  
  #ifndef SYN_REPORT
  #define SYN_REPORT          0x00
-@@ -182,11 +185,44 @@ int vibrate(int timeout_ms)
+@@ -182,11 +185,57 @@ int vibrate(int timeout_ms)
          write_to_file(VIBRATOR_TIMEOUT_FILE, tout);
      }
  #else
-+    // duration/activate/state are attributes of the LED "transient" trigger,
-+    // not of the LED device itself.  Android's lights HAL selects that trigger
-+    // when the system boots; in recovery nothing does, so on this device the
-+    // files simply do not exist and the writes below did nothing (that is why
-+    // vibration never worked in TWRP).  Select the trigger ourselves first.
-+    static bool leds_trigger_checked = false;
-+    if (!leds_trigger_checked) {
-+        leds_trigger_checked = true;
-+        if (!std::ifstream(LEDS_HAPTICS_ACTIVATE_FILE).good()) {
-+            if (write_to_file(LEDS_HAPTICS_TRIGGER_FILE, "transient") == 0)
-+                LOGINFO("vibrate: selected the transient LED trigger for the vibrator\n");
-+            else
-+                LOGINFO("vibrate: could not select the transient LED trigger\n");
-+        }
+-    if (std::ifstream(LEDS_HAPTICS_ACTIVATE_FILE).good()) {
++    // MediaTek's regulator_vibrator exposes the motor as an LED.  On this
++    // device brightness=max_brightness drives the regulator continuously and
++    // the "transient" trigger behaves inverted: activating it stops the motor
++    // for <duration> ms and leaves it running afterwards.  That is why build
++    // 21 buzzed non-stop and paused on every key press.
++    //
++    // Drive the brightness directly instead: 0 = off, max_brightness = on.
++    // The first call also clears any inherited continuous drive and selects
++    // the "none" trigger so nothing else owns the LED.
++    static std::atomic_int vib_pulses(0);
++    static bool vib_initialized = false;
++    if (!vib_initialized) {
++        vib_initialized = true;
++        if (std::ifstream(LEDS_HAPTICS_TRIGGER_FILE).good())
++            write_to_file(LEDS_HAPTICS_TRIGGER_FILE, "none");
++        write_to_file(LEDS_HAPTICS_BRIGHTNESS_FILE, "0");
 +    }
 +
-     if (std::ifstream(LEDS_HAPTICS_ACTIVATE_FILE).good()) {
--        write_to_file(LEDS_HAPTICS_DURATION_FILE, tout);
--        write_to_file(LEDS_HAPTICS_ACTIVATE_FILE, "1");
--    } else
--        write_to_file(VIBRATOR_TIMEOUT_FILE, tout);
-+        if (write_to_file(LEDS_HAPTICS_DURATION_FILE, tout) != 0 ||
-+            write_to_file(LEDS_HAPTICS_ACTIVATE_FILE, "1") != 0)
-+            LOGINFO("vibrate: writing the LED vibrator files failed\n");
-+    } else if (std::ifstream(VIBRATOR_TIMEOUT_FILE).good()) {
-+        if (write_to_file(VIBRATOR_TIMEOUT_FILE, tout) != 0)
-+            LOGINFO("vibrate: writing %s failed\n", VIBRATOR_TIMEOUT_FILE);
-+    } else if (std::ifstream(LEDS_HAPTICS_BRIGHTNESS_FILE).good()) {
-+        // Last resort: drive the LED brightness directly.  This blocks for
-+        // the duration of the pulse, but that is at most a few hundred ms.
-+        std::ifstream max_file(LEDS_HAPTICS_MAX_BRIGHTNESS_FILE);
++    if (std::ifstream(LEDS_HAPTICS_BRIGHTNESS_FILE).good()) {
 +        std::string max_brightness = "255";
++        std::ifstream max_file(LEDS_HAPTICS_MAX_BRIGHTNESS_FILE);
 +        if (max_file.good())
 +            std::getline(max_file, max_brightness);
-+        LOGINFO("vibrate: using the LED brightness interface for %d ms\n", timeout_ms);
-+        if (write_to_file(LEDS_HAPTICS_BRIGHTNESS_FILE, max_brightness) == 0) {
-+            usleep(timeout_ms * 1000);
-+            write_to_file(LEDS_HAPTICS_BRIGHTNESS_FILE, "0");
++        while (!max_brightness.empty() &&
++               (max_brightness[max_brightness.size() - 1] == '\n' ||
++                max_brightness[max_brightness.size() - 1] == '\r' ||
++                max_brightness[max_brightness.size() - 1] == ' '))
++            max_brightness.erase(max_brightness.size() - 1);
++
++        ++vib_pulses;
++        if (max_brightness.empty() ||
++            write_to_file(LEDS_HAPTICS_BRIGHTNESS_FILE, max_brightness) != 0) {
++            --vib_pulses;
++            LOGINFO("vibrate: could not enable the LED vibrator\n");
++        } else {
++            // Do not block the input thread: switch the motor off in the
++            // background once the last overlapping pulse has elapsed.
++            std::thread([timeout_ms] {
++                usleep(timeout_ms * 1000);
++                if (--vib_pulses == 0)
++                    write_to_file(LEDS_HAPTICS_BRIGHTNESS_FILE, "0");
++            }).detach();
 +        }
++    } else if (std::ifstream(VIBRATOR_TIMEOUT_FILE).good()) {
++        write_to_file(VIBRATOR_TIMEOUT_FILE, tout);
++    } else if (std::ifstream(LEDS_HAPTICS_ACTIVATE_FILE).good()) {
+         write_to_file(LEDS_HAPTICS_DURATION_FILE, tout);
+         write_to_file(LEDS_HAPTICS_ACTIVATE_FILE, "1");
+-    } else
+-        write_to_file(VIBRATOR_TIMEOUT_FILE, tout);
 +    } else {
 +        LOGINFO("vibrate: no vibrator interface found\n");
 +    }

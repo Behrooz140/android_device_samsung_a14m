@@ -12,6 +12,11 @@ on fs
     # runs before the recovery binary parses the fstab, so one image serves
     # encrypted and plain firmware (metadata encryption adds keydirectory= to /data)
     exec_start fstab-crypto
+    # MediaTek's regulator_vibrator comes up with brightness=max_brightness,
+    # so the motor runs continuously until userspace clears it.  TWRP drives
+    # it with brightness pulses (see patch 0017); make sure it starts silent.
+    write /sys/class/leds/vibrator/trigger none
+    write /sys/class/leds/vibrator/brightness 0
 
 on fs && property:ro.debuggable=0
     # distinguish USB shoulde connect or not, i.e. CDP vs SDP
@@ -33,6 +38,9 @@ on post-fs
 on boot
     setprop servicemanager.ready true
     setprop twrp.decrypt.run 1
+    # the vibrator module can finish probing after "on fs"
+    write /sys/class/leds/vibrator/trigger none
+    write /sys/class/leds/vibrator/brightness 0
 
 on property:twrp.decrypt.run=1
     start decrypt

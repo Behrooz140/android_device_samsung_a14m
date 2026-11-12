@@ -31,9 +31,9 @@
 | پاک‌کردن فایل‌سیستم روی `super` | ⚠️ | متادیتای `super` سامسونگ فقط‌خواندنی است |
 | Backup پارتیشن‌های منطقی | ❌ (عمدی) | TWRP برای `super` بکاپ را می‌بندد؛ از ایمیج استوک استفاده کنید |
 | `Reboot → Recovery` | ✅ | پچ ۰۰۱۳ + نوشتن مستقیم BCB |
-| `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴: اجرای مجدد خود TWRP با `--fastboot` |
-| دمای CPU در نوار بالا | ✅ | پچ ۰۰۱۶: پیدا کردن زون `mtktscpu` با نام |
-| ویبره (هپتیک) | ✅ | پچ ۰۰۱۷: انتخاب تریگر LED `transient` |
+| `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴ + ۰۰۱۸: BCB `boot-fastboot` و ریستارت به ریکاوری |
+| دمای نمایش‌داده‌شده | ⚠️ | پچ ۰۰۱۶؛ کرنل ریکاوری زون CPU ندارد، دمای باتری نمایش داده می‌شود |
+| ویبره (هپتیک) | ✅ | پچ ۰۰۱۷: درایو مستقیم `brightness` و ریست تریگر |
 | پاک‌کردن Dalvik / ART Cache | ⚠️ | پچ ۰۰۱۵؛ `/cache` پاک می‌شود، `dalvik-cache` داخل `/data` رمزنگاری‌شده در دسترس نیست |
 | `Reboot → System` | ✅ | |
 | fastbootd / repacktools / lptools | ✅ | |
@@ -390,28 +390,59 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
 
 ### ۸.۵ ریبوت به Fastboot، دمای CPU، ویبره و Dalvik
 
-**`Reboot → Fastboot`** (پچ ۰۰۱۴): init برای هدف `fastboot` هم باید BCB
-بنویسد و همان مشکل بخش ۸.۴ را دارد؛ پس دوباره «ریبوت نرم» می‌شد.
-fastbootd داخل همین باینری `recovery` است و فقط آرگومان `--fastboot`
-می‌خواهد؛ بنابراین TWRP به‌جای تکیه بر init، خودش را با
+**`Reboot → Fastboot`** (پچ‌های ۰۰۱۴ و ۰۰۱۸): init برای هدف `fastboot`
+هم باید BCB بنویسد و همان مشکل بخش ۸.۴ را دارد؛ پس دوباره «ریبوت نرم»
+می‌شد. در بیلد ۲۱ تلاش شد TWRP خودش را با
 `execl("/system/bin/recovery", "recovery", "--fastboot")` دوباره اجرا
-می‌کند. کرنل عوض نمی‌شود، init همان PID را زنده می‌بیند و مستقیم وارد
-صفحهٔ Fastboot می‌شوید.
+کند، ولی این کار هنگ می‌کرد: باینری تازه در همان فرایند و با همان
+دستگاه‌های DRM/USB و ورودی بازشده بالا می‌آمد.
+
+از بیلد ۲۲ مسیر درست همان مسیر بوت واقعی است:
+
+1. `rebootfastboot.sh` خودش BCB را در `/dev/block/by-name/misc` می‌نویسد
+   (`command[32]` صفر و سپس `boot-fastboot`) و شاهد آن را در
+   `/tmp/rebootfastboot.log` و پوشه‌های `twrp-diag` نگه می‌دارد.
+2. `tw_reboot(rb_fastboot)` با `LINUX_REBOOT_CMD_RESTART2` و دلیل
+   `recovery` سیستم را ریستارت می‌کند (دقیقاً مثل Reboot→Recovery)، پس
+   کرنل و همهٔ فرایندها از نو بالا می‌آیند.
+3. در بوت بعدی، `args::get_args()` رشتهٔ `boot-fastboot` را از `misc`
+   می‌خواند، `--fastboot` اضافه می‌شود و fastbootd به‌صورت یک فرایند
+   تازه اجرا می‌شود.
+4. پچ ۰۰۱۸ لازم است چون `get_misc_blk_device()` از `ReadDefaultFstab()`
+   استفاده می‌کند و fstab با فرمت TWRP را نمی‌فهمد (`failed to read
+   default fstab`)؛ حالا در صورت شکست به `/dev/block/by-name/misc`
+   برمی‌گردد.
 
 **دمای CPU** (پچ ۰۰۱۶): TWRP به‌طور پیش‌فرض `/sys/class/thermal/thermal_zone0/temp`
 را می‌خواند؛ در این گوشی zone0 همان `mtk-master-charger` است و همیشه ۰
-برمی‌گرداند. پچ حالا بین همهٔ `thermal_zone*` دنبال `type` برابر
-`mtktscpu` (و بعد `mtkcput`/`cpu`/هر چیزی که `cpu` دارد) می‌گردد و مسیر
-درست را برمی‌گرداند، پس شمارهٔ زون مهم نیست و دمای واقعی (مثلاً ۵۱°C)
-نمایش داده می‌شود.
+برمی‌گرداند. پچ بین همهٔ `thermal_zone*` دنبال `type` برابر `mtktscpu`
+(و بعد `mtkcput`/`cpu`/هر چیزی که `cpu` دارد) می‌گردد و مسیر درست را
+برمی‌گرداند.
 
-**ویبره** (پچ ۰۰۱۷): فایل‌های `duration`، `activate` و `state` مربوط به
-تریگر LED با نام `transient` هستند، نه خود درایور
-`regulator-vibrator`. اندروید در بوت عادی با lights HAL این تریگر را
-انتخاب می‌کند، ولی در ریکاوری هیچ‌کس انتخاب نمی‌کند؛ در نتیجه این
-فایل‌ها اصلاً وجود ندارند و TWRP بی‌صدا هیچ چیز نمی‌نوشت. پچ پیش از
-نوشتن، تریگر `transient` را انتخاب می‌کند و اگر در دسترس نبود به
-`/sys/class/timed_output/vibrator/enable` و سپس به `brightness` برمی‌گردد.
+**محدودیت واقعی دما:** کرنل ریکاوریِ استوک یک بیلد کاهش‌یافته است و در
+حالت ریکاوری فقط زون‌های شارژر و باتری (`thermal_zone0..7`) را ثبت
+می‌کند؛ زون CPU (همان `mtktscpu`) اصلاً وجود ندارد. شاهدش `diag.txt`
+بیلد ۲۱ است: فقط `mtk-master-charger`, `mtk-slave-charger`, `mtk-gauge`
+و `battery` دیده می‌شوند. پس در ریکاوری دمای SoC قابل خواندن نیست. پچ
+در این حالت به زون باتری (`battery`/`mtktsbattery`/`mtk-gauge`) برمی‌گردد
+تا عدد ثابت ۰ نمانَد؛ عددی که می‌بینید **دمای باتری** است، نه CPU، و
+همین در README صادقانه ذکر شده است.
+
+**ویبره** (پچ ۰۰۱۷): درایور `regulator-vibrator` موتور را به‌صورت یک LED
+با `brightness` تا `max_brightness` (۲۵۵) معرفی می‌کند و بعد از probe با
+`brightness=255` روشن می‌ماند. تریگر `transient` هم روی این دستگاه
+**برعکس** کار می‌کند: `activate=1` موتور را به مدت `duration` میلی‌ثانیه
+**خاموش** می‌کند و بعد دوباره روشن می‌گذارد؛ به همین دلیل در بیلد ۲۱
+ویبره همیشه روشن بود و با هر لمس یک ثانیه قطع می‌شد.
+
+از بیلد ۲۲ تریگر و `activate` کنار گذاشته شده‌اند:
+
+- `init.recovery.mt6768.rc` در `on fs` و `on boot` مقدار
+  `trigger=none` و `brightness=0` را می‌نویسد، پس موتور از ابتدا خاموش
+  است.
+- `vibrate()` مستقیماً `brightness=max_brightness` می‌نویسد و پس از
+  `timeout_ms` (در یک ترد جداگانه، بدون بلاک‌کردن ورودی) `brightness=0`
+  را برمی‌گرداند؛ پالس‌های هم‌پوشان با یک شمارنده مدیریت می‌شوند.
 
 **Dalvik / ART Cache** (پچ ۰۰۱۵): تابع `Wipe_Dalvik_Cache()` با شکست
 مانت `/data` کل عملیات را `false` برمی‌گرداند و فقط پیام کلی
@@ -456,12 +487,13 @@ fastbootd داخل همین باینری `recovery` است و فقط آرگوم�
 فایل‌های مهم:
 
 - `diag.txt` — dmesg، ماژول‌های لودشده، دستگاه‌های ورودی/i2c، مانت‌ها،
-  وضعیت TEE و رمزگشایی، همهٔ زون‌های حرارتی، وضعیت ویبره (تریگر و
-  `duration`/`activate`/`state`)، تنظیمات هپتیک/دمای TWRP، و ۱۲۸ بایت
-  اول `misc`/`boot_para`/`para`
+  وضعیت TEE و رمزگشایی، همهٔ زون‌های حرارتی، وضعیت ویبره (تریگر فعال و
+  `brightness`، `duration`/`activate`/`state` برای مقایسه)، تنظیمات
+  هپتیک/دمای TWRP، و ۱۲۸ بایت اول `misc`/`boot_para`/`para`
 - `recovery.log` — لاگ خود TWRP
 - `last_kmsg.txt` — لاگ کرنل نشست قبل (برای بررسی ریبوت)
-- `rebootrecovery.log` — شاهد نوشتن BCB
+- `rebootrecovery.log` — شاهد نوشتن BCB برای Reboot→Recovery
+- `rebootfastboot.log` — شاهد نوشتن BCB برای Reboot→Fastboot
 - `decrypt.log`, `fstab_crypto.log` — جزئیات تلاش رمزگشایی
 - `SAVED-TO.txt` — فهرست مقاصدی که فایل‌ها در آن‌ها ذخیره شده‌اند
 
@@ -523,9 +555,11 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | صفحه سیاه ولی `adb devices` جواب می‌دهد | روشنایی/پنل یا ماژول | `diag.txt` و `TW_BRIGHTNESS_PATH` را بررسی کنید |
 | تاچ کار نمی‌کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
 | `Reboot → Recovery` بدون لوگو و سریع | BCB نوشته نشده | `misc` را در `diag.txt` ببینید؛ نسخهٔ دارای پچ ۰۰۱۳ را فلش کنید |
-| `Reboot → Fastboot` باز TWRP را بالا می‌آورد | init/BCB و فست‌بوت‌د | نسخهٔ دارای پچ ۰۰۱۴ را فلش کنید |
+| `Reboot → Fastboot` باز TWRP را بالا می‌آورد یا هنگ می‌کند | init نمی‌تواند BCB بنویسید | پچ‌های ۰۰۱۴ و ۰۰۱۸؛ `rebootfastboot.log` را ببینید |
 | دمای CPU همیشه ۰ | خواندن `thermal_zone0` (شارژر) | پچ ۰۰۱۶؛ `diag.txt` را ببینید |
-| ویبره در ریکاوری کار نمی‌کند | تریگر `transient` انتخاب نشده | پچ ۰۰۱۷؛ مقدار `trigger` را در `diag.txt` ببینید |
+| دمای نمایش‌داده‌شده پایین‌تر از دمای واقعی SoC است | کرنل ریکاوری زون CPU ندارد | طبیعی است؛ عدد، دمای باتری است (بخش ۸.۵) |
+| ویبره همیشه روشن است یا با لمس قطع می‌شود | تریگر `transient` معکوس | پچ ۰۰۱۷؛ `trigger`/`brightness` را در `diag.txt` ببینید |
+| ویبره در ریکاوری کار نمی‌کند | `brightness`/`max_brightness` | پچ ۰۰۱۷؛ مقدار `brightness` را در `diag.txt` ببینید |
 | Dalvik پاک نمی‌شود یا «Failed to wipe dalvik» | `/data` مانت نمی‌شود | پچ ۰۰۱۵؛ `dalvik-cache` داخل `/data` رمزنگاری‌شده بدون رمزگشایی در دسترس نیست |
 | `/data` مانت نمی‌شود | رمزنگاری متادیتا | طبیعی است؛ بخش ۹ |
 | پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
@@ -555,14 +589,36 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | `0011-remount-data-under-stale-sdcard-bind` | رفع bind کهنهٔ `/sdcard` روی `/data` |
 | `0012-keep-logical-wipe-flags` | احترام به `wipeingui` برای پارتیشن‌های `super` |
 | `0013-direct-reboot-recovery` | `LINUX_REBOOT_CMD_RESTART2` مستقیم برای Reboot→Recovery |
-| `0014-direct-fastboot-restart` | اجرای مجدد `recovery --fastboot` در همان PID برای Reboot→Fastboot |
+| `0014-direct-fastboot-restart` | BCB `boot-fastboot` + `RESTART2("recovery")` برای Reboot→Fastboot |
 | `0015-dalvik-without-data` | پاک‌کردن Dalvik بدون شکست وقتی `/data` مانت نیست |
-| `0016-autodetect-cpu-temp-zone` | پیدا کردن زون حرارتی CPU با `type` به‌جای `thermal_zone0` |
-| `0017-enable-leds-vibrator-trigger` | انتخاب تریگر `transient` و fallbackهای ویبره |
+| `0016-autodetect-cpu-temp-zone` | پیدا کردن زون CPU با `type` و fallback به زون باتری |
+| `0017-enable-leds-vibrator-trigger` | درایو ویبره فقط با `brightness` و ریست تریگر |
+| `0018-bootloader-message-misc-fallback` | fallback خواندن/نوشتن BCB به `/dev/block/by-name/misc` |
 
 ---
 
 ## ۱۲) تغییرات
+
+### بیلد ۲۲ — رفع سه ایراد بیلد ۲۱
+
+- پچ ۰۰۱۴ بازنویسی شد: به‌جای `execl` در همان فرایند (که هنگ می‌کرد)،
+  `rebootfastboot.sh` BCB `boot-fastboot` را می‌نویسد و TWRP با
+  `RESTART2("recovery")` ریستارت می‌شود؛ fastbootd در بوت بعدی به‌صورت
+  فرایند تازه بالا می‌آید.
+- پچ ۰۰۱۸ جدید: `get_misc_blk_device()` وقتی `ReadDefaultFstab()` شکست
+  می‌خورد، به `/dev/block/by-name/misc` برمی‌گردد؛ پیش از این
+  `failed to read default fstab` باعث می‌شد BCB نه خوانده شود و نه
+  نوشته شود.
+- پچ ۰۰۱۷ بازنویسی شد: تریگر `transient` (که روی این درایور معکوس کار
+  می‌کند) کنار گذاشته شد؛ ویبره با نوشتن مستقیم `brightness` روشن و در
+  یک ترد جداگانه خاموش می‌شود. مشکل «همیشه روشن + قطع شدن با لمس» رفع شد.
+- `init.recovery.mt6768.rc` در `on fs` و `on boot` مقدار
+  `trigger=none` و `brightness=0` را می‌نویسد تا موتور از ابتدا خاموش
+  باشد.
+- پچ ۰۰۱۶: fallback به زون باتری وقتی کرنل ریکاوری هیچ زون CPU ندارد؛
+  عدد نمایش‌داده‌شده دمای باتری است (بخش ۸.۵).
+- `twrp-diag.sh`: ویبره قبل و بعد از آزمون تریگر ثبت می‌شود و در پایان
+  `trigger=none`/`brightness=0` بازگردانده می‌شود.
 
 ### بیلد ۲۱ — `75e9a52`
 

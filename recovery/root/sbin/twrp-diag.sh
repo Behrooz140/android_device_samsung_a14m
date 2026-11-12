@@ -96,12 +96,23 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   ls -l /sys/class/timed_output/vibrator 2>/dev/null
   echo "-- loaded vibrator modules"
   grep -i vibr /proc/modules 2>/dev/null
-  echo "-- after selecting the transient trigger (as TWRP does)"
+  # Build 17+ drives the motor through brightness (patch 0017) and init
+  # (init.recovery.mt6768.rc) forces trigger=none / brightness=0 at "on fs"
+  # and "on boot".  The two lines above must therefore read "none" and "0";
+  # anything else means init did not apply them and the motor runs.
+  echo "-- active trigger: $(tr ' ' '\n' < /sys/class/leds/vibrator/trigger 2>/dev/null | grep -E '^\[.*\]$' | tr -d '[]')"
+  echo "-- after selecting the transient trigger (old behaviour, for comparison)"
   echo transient > /sys/class/leds/vibrator/trigger 2>/dev/null
   ls /sys/class/leds/vibrator 2>/dev/null
   for f in duration activate state; do
     echo "-- $f: $(cat /sys/class/leds/vibrator/$f 2>/dev/null)"
   done
+  # Leave the motor in the state TWRP expects: no trigger, brightness 0.
+  # Without this the transient trigger stays active and the motor keeps
+  # running after the diagnostics finish.
+  echo none > /sys/class/leds/vibrator/trigger 2>/dev/null
+  echo 0 > /sys/class/leds/vibrator/brightness 2>/dev/null
+  echo "-- restored: trigger=$(tr ' ' '\n' < /sys/class/leds/vibrator/trigger 2>/dev/null | grep -E '^\[.*\]$' | tr -d '[]') brightness=$(cat /sys/class/leds/vibrator/brightness 2>/dev/null)"
   echo "-- dmesg vibrator"
   dmesg 2>/dev/null | grep -iE 'regulator_vibrator|vibr enable|vibr disable' | tail -50
   echo

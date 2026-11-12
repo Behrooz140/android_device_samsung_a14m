@@ -1,0 +1,54 @@
+diff --git a/bootloader_message/bootloader_message.cpp b/bootloader_message/bootloader_message.cpp
+index b70d54e..f92819d 100755
+--- a/bootloader_message/bootloader_message.cpp
++++ b/bootloader_message/bootloader_message.cpp
+@@ -19,6 +19,7 @@
+ #include <errno.h>
+ #include <fcntl.h>
+ #include <string.h>
++#include <unistd.h>
+ 
+ #include <optional>
+ #include <string>
+@@ -50,17 +51,34 @@ std::string get_misc_blk_device(std::string* err) {
+     return *g_misc_device_for_test;
+   }
+   Fstab fstab;
+-  if (!ReadDefaultFstab(&fstab)) {
++  if (ReadDefaultFstab(&fstab)) {
++    for (const auto& entry : fstab) {
++      if (entry.mount_point == "/misc") {
++        return entry.blk_device;
++      }
++    }
++    *err = "failed to find /misc partition";
++  } else {
+     *err = "failed to read default fstab";
+-    return "";
+   }
+-  for (const auto& entry : fstab) {
+-    if (entry.mount_point == "/misc") {
+-      return entry.blk_device;
++
++  // Samsung a14m / TWRP: /etc/recovery.fstab uses the TWRP format, which
++  // fs_mgr cannot parse, so the lookup above always fails inside recovery.
++  // That breaks every bootloader-message operation (Reboot->Fastboot in
++  // particular, because the BCB written here is what tells TWRP to start
++  // fastbootd).  Fall back to the by-name symlinks that the recovery
++  // ramdisk always provides.
++  static const char* kMiscCandidates[] = {
++      "/dev/block/by-name/misc",
++      "/dev/block/platform/bootdevice/by-name/misc",
++      "/dev/block/platform/soc/11230000.mmc/by-name/misc",
++  };
++  for (const char* candidate : kMiscCandidates) {
++    if (access(candidate, F_OK) == 0) {
++      err->clear();
++      return candidate;
+     }
+   }
+-
+-  *err = "failed to find /misc partition";
+   return "";
+ }
+ 

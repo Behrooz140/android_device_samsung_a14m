@@ -1,5 +1,5 @@
 diff --git a/data.cpp b/data.cpp
-index 0078524..f001ea3 100644
+index 0078524..b902f97 100644
 --- a/data.cpp
 +++ b/data.cpp
 @@ -22,6 +22,8 @@
@@ -11,11 +11,11 @@ index 0078524..f001ea3 100644
  #include <cutils/properties.h>
  #include <unistd.h>
  
-@@ -564,6 +566,50 @@ void DataManager::SetBackupFolder()
+@@ -564,6 +566,64 @@ void DataManager::SetBackupFolder()
  	}
  }
  
-+// Returns the sysfs file that reports the CPU temperature.
++// Returns the sysfs file used for the temperature shown in the status bar.
 +//
 +// TWRP's built-in default is thermal_zone0, but the zone order is not fixed:
 +// on MT6768 (a14m) zone0 is mtk-master-charger and always reads 0, while the
@@ -23,6 +23,13 @@ index 0078524..f001ea3 100644
 +// TW_CUSTOM_CPU_TEMP_PATH when the device tree sets one, then look for the
 +// MediaTek CPU zone by name, so the value no longer depends on the order in
 +// which the thermal zones were probed.
++//
++// The stock recovery kernel is a reduced build: in recovery it only registers
++// the charger and battery zones (thermal_zone0..7) and no CPU zone at all,
++// even though the normal Android kernel has mtktscpu.  Returning zone0 in that
++// case shows a permanent 0.  Falling back to the battery zone at least gives a
++// live temperature, so the status bar is not stuck at 0; it is the battery,
++// not the SoC, and the README says so.
 +static string Get_CPU_Temp_File() {
 +#ifdef TW_CUSTOM_CPU_TEMP_PATH
 +	string custom = EXPAND(TW_CUSTOM_CPU_TEMP_PATH);
@@ -30,7 +37,8 @@ index 0078524..f001ea3 100644
 +		return custom;
 +#endif
 +
-+	string fallback;
++	string cpu_fallback;
++	string battery_fallback;
 +	DIR* dir = opendir("/sys/class/thermal");
 +	if (dir != NULL) {
 +		struct dirent* de;
@@ -49,20 +57,26 @@ index 0078524..f001ea3 100644
 +				closedir(dir);
 +				return temp_file;
 +			}
-+			if (fallback.empty() && type.find("cpu") != string::npos)
-+				fallback = temp_file;
++			if (cpu_fallback.empty() && type.find("cpu") != string::npos)
++				cpu_fallback = temp_file;
++			if (battery_fallback.empty() && (type == "battery" || type == "mtktsbattery" || type == "mtk-gauge"))
++				battery_fallback = temp_file;
 +		}
 +		closedir(dir);
 +	}
-+	if (!fallback.empty())
-+		return fallback;
++	if (!cpu_fallback.empty())
++		return cpu_fallback;
++	if (!battery_fallback.empty()) {
++		LOGINFO("No CPU thermal zone in this kernel; using the battery zone\n");
++		return battery_fallback;
++	}
 +	return "/sys/class/thermal/thermal_zone0/temp";
 +}
 +
  void DataManager::SetDefaultValues()
  {
  	string str, path;
-@@ -651,12 +697,7 @@ void DataManager::SetDefaultValues()
+@@ -651,12 +711,7 @@ void DataManager::SetDefaultValues()
  	printf("TW_NO_CPU_TEMP := true\n");
  	mConst.SetValue("tw_no_cpu_temp", "1");
  #else
@@ -76,7 +90,7 @@ index 0078524..f001ea3 100644
  	if (TWFunc::Path_Exists(cpu_temp_file)) {
  		mConst.SetValue("tw_no_cpu_temp", "0");
  	} else {
-@@ -1033,15 +1074,9 @@ int DataManager::GetMagicValue(const string& varName, string& value)
+@@ -1033,15 +1088,9 @@ int DataManager::GetMagicValue(const string& varName, string& value)
  		gettimeofday(&curTime, NULL);
  		if (curTime.tv_sec > cpuSecCheck)
  		{
