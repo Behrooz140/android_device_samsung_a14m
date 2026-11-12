@@ -31,7 +31,7 @@
 | پاک‌کردن فایل‌سیستم روی `super` | ⚠️ | متادیتای `super` سامسونگ فقط‌خواندنی است |
 | Backup پارتیشن‌های منطقی | ❌ (عمدی) | TWRP برای `super` بکاپ را می‌بندد؛ از ایمیج استوک استفاده کنید |
 | `Reboot → Recovery` | ✅ | پچ ۰۰۱۳ + نوشتن مستقیم BCB |
-| `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴ + ۰۰۱۸: BCB `boot-fastboot` و ریستارت به ریکاوری |
+| `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴ + ۰۰۱۸: نوشتن BCB `--fastboot` و ریستارت به ریکاوری |
 | دمای نمایش‌داده‌شده | ⚠️ | پچ ۰۰۱۶؛ کرنل ریکاوری زون CPU ندارد، دمای باتری نمایش داده می‌شود |
 | ویبره (هپتیک) | ✅ | پچ ۰۰۱۷: درایو مستقیم `brightness` و ریست تریگر |
 | پاک‌کردن Dalvik / ART Cache | ⚠️ | پچ ۰۰۱۵؛ `/cache` پاک می‌شود، `dalvik-cache` داخل `/data` رمزنگاری‌شده در دسترس نیست |
@@ -400,14 +400,15 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
 از بیلد ۲۲ مسیر درست همان مسیر بوت واقعی است:
 
 1. `rebootfastboot.sh` خودش BCB را در `/dev/block/by-name/misc` می‌نویسد
-   (`command[32]` صفر و سپس `boot-fastboot`) و شاهد آن را در
+   (`command[32]` و `status[32]` صفر، سپس `boot-recovery` و
+   `recovery\n--fastboot`) و شاهد آن را در
    `/tmp/rebootfastboot.log` و پوشه‌های `twrp-diag` نگه می‌دارد.
 2. `tw_reboot(rb_fastboot)` با `LINUX_REBOOT_CMD_RESTART2` و دلیل
    `recovery` سیستم را ریستارت می‌کند (دقیقاً مثل Reboot→Recovery)، پس
    کرنل و همهٔ فرایندها از نو بالا می‌آیند.
-3. در بوت بعدی، `args::get_args()` رشتهٔ `boot-fastboot` را از `misc`
-   می‌خواند، `--fastboot` اضافه می‌شود و fastbootd به‌صورت یک فرایند
-   تازه اجرا می‌شود.
+3. در بوت بعدی، `args::get_args()` فیلد `recovery` را از `misc` می‌خواند،
+   توکن `--fastboot` را اضافه می‌کند و fastbootd به‌صورت یک فرایند تازه
+   اجرا می‌شود.
 4. پچ ۰۰۱۸ لازم است چون `get_misc_blk_device()` از `ReadDefaultFstab()`
    استفاده می‌کند و fstab با فرمت TWRP را نمی‌فهمد (`failed to read
    default fstab`)؛ حالا در صورت شکست به `/dev/block/by-name/misc`
@@ -555,7 +556,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | صفحه سیاه ولی `adb devices` جواب می‌دهد | روشنایی/پنل یا ماژول | `diag.txt` و `TW_BRIGHTNESS_PATH` را بررسی کنید |
 | تاچ کار نمی‌کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
 | `Reboot → Recovery` بدون لوگو و سریع | BCB نوشته نشده | `misc` را در `diag.txt` ببینید؛ نسخهٔ دارای پچ ۰۰۱۳ را فلش کنید |
-| `Reboot → Fastboot` باز TWRP را بالا می‌آورد یا هنگ می‌کند | init نمی‌تواند BCB بنویسید | پچ‌های ۰۰۱۴ و ۰۰۱۸؛ `rebootfastboot.log` را ببینید |
+| `Reboot → Fastboot` باز TWRP را بالا می‌آورد یا هنگ می‌کند | init نمی‌تواند BCB بنویسد | پچ‌های ۰۰۱۴ و ۰۰۱۸؛ `rebootfastboot.log` را ببینید |
 | دمای CPU همیشه ۰ | خواندن `thermal_zone0` (شارژر) | پچ ۰۰۱۶؛ `diag.txt` را ببینید |
 | دمای نمایش‌داده‌شده پایین‌تر از دمای واقعی SoC است | کرنل ریکاوری زون CPU ندارد | طبیعی است؛ عدد، دمای باتری است (بخش ۸.۵) |
 | ویبره همیشه روشن است یا با لمس قطع می‌شود | تریگر `transient` معکوس | پچ ۰۰۱۷؛ `trigger`/`brightness` را در `diag.txt` ببینید |
@@ -589,7 +590,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | `0011-remount-data-under-stale-sdcard-bind` | رفع bind کهنهٔ `/sdcard` روی `/data` |
 | `0012-keep-logical-wipe-flags` | احترام به `wipeingui` برای پارتیشن‌های `super` |
 | `0013-direct-reboot-recovery` | `LINUX_REBOOT_CMD_RESTART2` مستقیم برای Reboot→Recovery |
-| `0014-direct-fastboot-restart` | BCB `boot-fastboot` + `RESTART2("recovery")` برای Reboot→Fastboot |
+| `0014-direct-fastboot-restart` | BCB `--fastboot` + `RESTART2("recovery")` برای Reboot→Fastboot |
 | `0015-dalvik-without-data` | پاک‌کردن Dalvik بدون شکست وقتی `/data` مانت نیست |
 | `0016-autodetect-cpu-temp-zone` | پیدا کردن زون CPU با `type` و fallback به زون باتری |
 | `0017-enable-leds-vibrator-trigger` | درایو ویبره فقط با `brightness` و ریست تریگر |
@@ -602,7 +603,8 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 ### بیلد ۲۲ — رفع سه ایراد بیلد ۲۱
 
 - پچ ۰۰۱۴ بازنویسی شد: به‌جای `execl` در همان فرایند (که هنگ می‌کرد)،
-  `rebootfastboot.sh` BCB `boot-fastboot` را می‌نویسد و TWRP با
+  `rebootfastboot.sh` خودش BCB را (`boot-recovery` + `recovery\n--fastboot`)
+  می‌نویسد و TWRP با
   `RESTART2("recovery")` ریستارت می‌شود؛ fastbootd در بوت بعدی به‌صورت
   فرایند تازه بالا می‌آید.
 - پچ ۰۰۱۸ جدید: `get_misc_blk_device()` وقتی `ReadDefaultFstab()` شکست

@@ -9,10 +9,15 @@
 # write_bootloader_message() fails and init restarts TWRP instead - which is
 # what a hanging/unchanged Reboot to Fastboot looked like.
 #
-# So write the BCB here ourselves (patch 0018 also teaches TWRP's own BCB
-# reader about /dev/block/by-name/misc), then tw_reboot() restarts with the
-# reason "recovery" (patch 0014), exactly like Reboot to Recovery.  On the
-# next boot TWRP sees "boot-fastboot" and starts fastbootd as a new process.
+# So write the BCB here ourselves, using exactly the fields TWRP fills in when
+# it is started with --fastboot:
+#   command[32]  = "boot-recovery"
+#   status[32]   = zero
+#   recovery[768]= "recovery\n--fastboot"
+# get_args() then finds tokens[0] == "recovery" and appends "--fastboot", which
+# selects fastbootd without depending on the "boot-fastboot" special case.
+# Then tw_reboot() restarts with the reason "recovery" (patch 0014), exactly
+# like Reboot to Recovery, so the kernel and every process start fresh.
 MISC=/dev/block/by-name/misc
 OUT=/tmp/rebootfastboot.log
 : > "$OUT"
@@ -27,15 +32,14 @@ OUT=/tmp/rebootfastboot.log
 if [ ! -e "$MISC" ]; then
 	echo "misc partition not found" >> "$OUT"
 else
-	# command[32] and status[32] belong to us; recovery[768] is left alone.
-	dd if=/dev/zero of="$MISC" bs=1 count=64 conv=notrunc 2>>"$OUT"
-	printf 'boot-fastboot' | dd of="$MISC" bs=1 count=13 conv=notrunc 2>>"$OUT"
+	# command + status + recovery + stage (32+32+768+32); the rest of the
+	# partition is left untouched.
+	dd if=/dev/zero of="$MISC" bs=1 count=864 conv=notrunc 2>>"$OUT"
+	printf 'boot-recovery' | dd of="$MISC" bs=1 seek=0 conv=notrunc 2>>"$OUT"
+	printf 'recovery\n--fastboot' | dd of="$MISC" bs=1 seek=64 conv=notrunc 2>>"$OUT"
 	sync
-	echo "-- misc[0..63] after write --" >> "$OUT"
-	dd if="$MISC" bs=1 count=64 2>/dev/null | od -An -tx1 >> "$OUT" 2>&1
-	echo "-- command string --" >> "$OUT"
-	dd if="$MISC" bs=1 count=13 2>/dev/null >> "$OUT"
-	echo >> "$OUT"
+	echo "-- misc[0..95] after write --" >> "$OUT"
+	dd if="$MISC" bs=1 count=96 2>/dev/null | od -An -tx1 -c >> "$OUT" 2>&1
 fi
 
 # Keep the evidence across the reboot: the next TWRP start clears the BCB.

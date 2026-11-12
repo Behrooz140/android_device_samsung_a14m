@@ -8,7 +8,7 @@ diff --git a/twrp-functions.cpp b/twrp-functions.cpp
 -			return property_set(ANDROID_RB_PROPERTY, "reboot,fastboot");
 +			check_and_run_script("/system/bin/rebootfastboot.sh", "reboot fastboot");
 +			// Samsung a14m: "reboot,fastboot" cannot work.  init has to
-+			// write a "boot-fastboot" bootloader control block before
++			// write a bootloader control block with --fastboot before
 +			// rebooting, but it parses /etc/recovery.fstab with fs_mgr
 +			// while TWRP keeps its own format, so the BCB write fails and
 +			// init restarts recovery instead.

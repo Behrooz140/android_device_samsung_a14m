@@ -1,8 +1,17 @@
 diff --git a/minuitwrp/events.cpp b/minuitwrp/events.cpp
-index e497df6..9a6fc51 100644
+index e497df6..a9ece47 100644
 --- a/minuitwrp/events.cpp
 +++ b/minuitwrp/events.cpp
-@@ -63,6 +63,9 @@ static std::atomic_int vib_on_count = 0;
+@@ -27,6 +27,8 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <fstream>
++#include <atomic>
++#include <thread>
+ #ifdef USE_QTI_AIDL_HAPTICS_FIX_OFF
+ #include <thread>
+ #endif
+@@ -63,6 +65,9 @@ static std::atomic_int vib_on_count = 0;
  
  #define LEDS_HAPTICS_DURATION_FILE	"/sys/class/leds/vibrator/duration"
  #define LEDS_HAPTICS_ACTIVATE_FILE	"/sys/class/leds/vibrator/activate"
@@ -12,7 +21,7 @@ index e497df6..9a6fc51 100644
  
  #ifndef SYN_REPORT
  #define SYN_REPORT          0x00
-@@ -182,11 +185,57 @@ int vibrate(int timeout_ms)
+@@ -182,11 +187,57 @@ int vibrate(int timeout_ms)
          write_to_file(VIBRATOR_TIMEOUT_FILE, tout);
      }
  #else
