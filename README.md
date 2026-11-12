@@ -3,15 +3,42 @@
 درخت دستگاه (device tree) اختصاصی برای ساخت **TWRP 12.1** روی
 **Samsung Galaxy A14 4G — SM-A145P**، بر پایهٔ فایل ریکاوری استوک خودِ گوشی.
 
-> **وضعیت:** بیلد روی GitHub Actions با موفقیت انجام می‌شود و فایل
-> `recovery.img`/`twrp_a14m.tar.md5` تولید می‌شود. مشکل فعلی **بوت نشدن**
-> تصویر روی گوشی است (لوگوی سامسونگ ~۱۰ ثانیه و سپس ریبوت). دو علت اصلی
-> در بخش ۶.۴ توضیح داده شده است: `vbmeta` غیرفعال‌نشده و نبودِ ماژول‌های
-> کرنل در رم‌دیسک (این نسخه هر دو اصلاح شده است).
+> **وضعیت: بیلد ۲۰ روی گوشی تست شده و کار می‌کند.**
+> بوت، نمایشگر، تاچ، ذخیره‌سازی، پارتیشن‌های منطقی `super`،
+> `Install Image` روی پارتیشن‌های منطقی، دیده‌شدن آن‌ها در
+> **Advanced Wipe** و **Reboot → Recovery** همگی درست کار می‌کنند.
+>
+> تنها محدودیت باقی‌مانده **رمزگشایی `/data`** است که از پارتیشن
+> `recovery` عملاً غیرممکن است (بخش ۹). این محدودیت ناشی از رفتار
+> بوت‌لودر است، نه اشکال درخت.
+
+ریپازیتوری: `https://github.com/Behrooz140/android_device_samsung_a14m`
 
 ---
 
-## ۱) مشخصات دستگاه
+## ۱) وضعیت امکانات
+
+| امکان | وضعیت | توضیح |
+|---|---|---|
+| بوت TWRP از پارتیشن `recovery` | ✅ | هدر بوت دقیقاً مطابق استوک |
+| نمایشگر و روشنایی | ✅ | `TW_BRIGHTNESS_PATH` روی backlight واقعی |
+| تاچ (Himax HX83112) | ✅ | فریمور تاچ داخل رم‌دیسک قرار دارد |
+| خواندن/نوشتن MicroSD | ✅ | `/external_sd` (exFAT/vfat) |
+| حافظهٔ داخلی `/sdcard` | ⚠️ | فقط وقتی `/data` مانت شود |
+| پارتیشن‌های منطقی `super` | ✅ | مانت فقط‌خواندنی + `flashimg=1` |
+| `Install Image` روی `system`/`vendor`/… | ✅ | پچ ۰۰۰۸ |
+| دیده‌شدن پارتیشن‌های منطقی در Advanced Wipe | ✅ | پچ ۰۰۱۲ + `wipeingui` |
+| پاک‌کردن فایل‌سیستم روی `super` | ⚠️ | متادیتای `super` سامسونگ فقط‌خواندنی است |
+| Backup پارتیشن‌های منطقی | ❌ (عمدی) | TWRP برای `super` بکاپ را می‌بندد؛ از ایمیج استوک استفاده کنید |
+| `Reboot → Recovery` | ✅ | پچ ۰۰۱۳ + نوشتن مستقیم BCB |
+| `Reboot → System` | ✅ | |
+| fastbootd / repacktools / lptools | ✅ | |
+| رمزگشایی `/data` | ❌ | بوت‌لودر در حالت ریکاوری TEE را بالا نمی‌آورد |
+| APEX | حذف‌شده | `TW_EXCLUDE_APEX := true` |
+
+---
+
+## ۲) مشخصات دستگاه
 
 | مورد | مقدار |
 |---|---|
@@ -24,7 +51,8 @@
 | بیلد استوک | `A145PXXSDDZH1` / `AP3A.240905.015.A2` |
 | پچ امنیتی | `2026-07-05` |
 | فرگمنت | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXSDDZH1:user/release-keys` |
-| پارتیشن ریکاوری | `80,740,352` بایت (باینری نهایی باید کوچک‌تر باشد) |
+| پارتیشن ریکاوری | `80,740,352` بایت (p40) |
+| پارتیشن `super` | `9,126,805,504` بایت (p46) |
 
 نمایشگر: پنل‌های `BOE / TXD / INX / JDI` با درایورهای `hx83112f`, `jd9522t`,
 `nl9922c`, `td4375`.
@@ -32,20 +60,20 @@
 
 ---
 
-## ۲) منبع تمام فایل‌های prebuilt
+## ۳) منبع prebuiltها و هدر بوت
 
 همهٔ فایل‌های زیر **از `recovery.img` استوک خودِ گوشی** استخراج شده‌اند
-(نه از اینترنت و نه از دستگاه مشابه). بنابراین کرنل و ماژول‌ها دقیقاً با
-سخت‌افزار همین گوشی هم‌خوان هستند.
+(نه از اینترنت و نه از دستگاه مشابه). بنابراین کرنل، DTB/DTBO و ماژول‌ها
+دقیقاً با سخت‌افزار همین بیلد هم‌خوان هستند.
 
 | فایل | اندازه | MD5 | توضیح |
 |---|---:|---|---|
 | `prebuilt/kernel` | 13,975,532 | `933b3c79216a10cd47b5c93ce16e10e9` | `Image.gz` استوک (gzip) |
-| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | DTB پایهٔ MT6768 از خود `recovery.img` |
-| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO برد `A14M MEA OPEN 00` از `recovery.img` |
+| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | DTB پایهٔ MT6768 |
+| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO برد `A14M MEA OPEN 00` |
 | `prebuilt/modules/` | 25 MB | — | ۱۹۸ فایل `.ko` + `modules.alias`, `modules.dep`, `modules.softdep`, `modules.load.recovery` |
 
-جزئیات هدر بوت استوک:
+هدر بوت خروجی باید **بایت‌به‌بایت** با استوک یکی باشد:
 
 ```
 header version : 2
@@ -60,62 +88,119 @@ os version     : 15.0.0 / 2026-07
 ramdisk format : LZ4 (legacy frame)
 ```
 
+این مقادیر در `BoardConfig.mk` صریحاً تنظیم شده‌اند
+(`--board SRPVJ12A013`, `--dtb_offset 0x0bc08000`,
+`--os_version 15.0.0 --os_patch_level 2026-07`, `BOARD_RAMDISK_USE_LZ4`).
+تغییر هرکدام باعث می‌شود بوت‌لودر تصویر را رد کند یا کرنل ramdisk را
+پیدا نکند.
+
 > ماژول‌ها **باید** با `prebuilt/kernel` هم‌نسل باشند؛ اگر کرنل را عوض کنید
 > (مثلاً کرنل کاستوم)، این ماژول‌ها دیگر لود نمی‌شوند و نمایشگر، تاچ،
 > ذخیره‌سازی و USB از کار می‌افتند.
 
 ---
 
-## ۳) ساختار درخت
+## ۴) ساختار درخت
 
 ```
 device/samsung/a14m/
-├── .github/workflows/build-twrp.yml ← ورک‌فلو GitHub Actions
+├── .github/workflows/build-twrp.yml ← ورک‌فلو ساخت روی GitHub Actions
 ├── .gitignore
-├── Android.bp
-├── Android.mk
-├── AndroidProducts.mk
-├── BoardConfig.mk              ← تنظیمات کرنل، پارتیشن‌ها، AVB و TWRP
-├── device.mk                   ← کپی فایل‌های ریکاوری و ماژول‌ها
+├── Android.bp / Android.mk / AndroidProducts.mk
+├── BoardConfig.mk              ← کرنل، پارتیشن‌ها، AVB و فلگ‌های TWRP
+├── device.mk                   ← کپی فایل‌های رم‌دیسک و ماژول‌ها
 ├── twrp_a14m.mk                ← محصول twrp_a14m
 ├── vendorsetup.sh
-├── recovery.fstab              ← fstab مخصوص TWRP
+├── recovery.fstab              ← fstab مخصوص TWRP (فرمت v2)
 ├── prebuilt/
 │   ├── kernel                  ← Image.gz استوک
 │   ├── dtb.img                 ← DTB پایهٔ استوک
 │   ├── dtbo.img                ← DTBO استوک
-│   └── modules/                ← ۱۹۸ ماژول کرنل استوک
+│   └── modules/                ← ۱۹۸ ماژول کرنل استوک + وابستگی‌ها
+├── decrypt/                    ← بخش نرم‌افزاری رمزگشایی /data
+│   ├── Android.bp              ← تعریف langsdorff_decrypt و gk_verify
+│   ├── langsdorff_decrypt.cpp  ← بازکردن FBE v2 + متادیتا با KeyMint
+│   └── gk_verify.cpp           ← تأیید رمز با gatekeeper هیدل ۱.۰
+├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۳)
 ├── recovery/root/
-│   ├── init.recovery.mt6768.rc ← USB / init مخصوص MTK
+│   ├── init.recovery.mt6768.rc ← USB، TEE، سرویس decrypt، diag
 │   ├── init.recovery.samsung.rc← آماده‌سازی efs
-│   ├── system/etc/init/         ← فایل‌های rc استوک (dsms, snapuserd, ...)
-│   └── system/etc/twrp.flags   ← ورودی‌های اختیاری (USB-OTG)
+│   ├── sbin/twrp-diag.sh       ← جمع‌آوری لاگ تشخیصی
+│   ├── system/bin/             ← decrypt.sh، data_release.sh،
+│   │                             fstab_crypto.sh، rebootrecovery.sh، …
+│   ├── system/etc/init/        ← فایل‌های rc استوک (dsms, snapuserd, …)
+│   ├── system/etc/twrp.flags   ← ورودی‌های اختیاری (USB-OTG)
+│   └── system/tee/             ← پشتهٔ TEE سامسونگ برای تلاش رمزگشایی
 └── tools/
-    └── extract_from_recovery.sh← استخراج مجدد همهٔ فایل‌ها از recovery.img
+    ├── extract_from_recovery.sh← استخراج مجدد prebuiltها
+    └── stock_recovery.fstab    ← fstab استوک برای مقایسه
 ```
 
-فایل‌های `recovery/root/...` توسط `PRODUCT_COPY_FILES` به
-`out/target/product/a14m/recovery/root/...` کپی می‌شوند و سپس داخل
-رم‌دیسک ریکاوری قرار می‌گیرند. ماژول‌ها در نهایت در
-`recovery/root/lib/modules/` قرار می‌گیرند؛ همان مسیری که `init`
-در حالت ریکاوری جست‌وجو می‌کند (`modules.load.recovery`).
+فایل‌های `recovery/root/...` با `PRODUCT_COPY_FILES` به
+`out/target/product/a14m/recovery/root/...` کپی می‌شوند و داخل رم‌دیسک
+قرار می‌گیرند. ماژول‌ها در `recovery/root/lib/modules/` می‌نشینند؛ همان
+مسیری که init در حالت ریکاوری برای `modules.load.recovery` جست‌وجو می‌کند.
+
+پچ‌ها عمداً داخل خود ریپازیتوری هستند؛ ورک‌فلو پیش از ساخت آن‌ها را روی
+سورس TWRP اعمال می‌کند و لازم نیست نسخهٔ دستی‌کاری‌شدهٔ TWRP نگه‌داری شود.
 
 ---
 
-## ۴) پیش‌نیاز ساخت
+## ۵) ساخت با GitHub Actions (روش اصلی)
 
-- لینوکس ۶۴ بیتی، حداقل ~۱۰۰ گیگ فضای آزاد، ۸ گیگ رم (۱۶ گیگ توصیه می‌شود)
-- ابزارهای `repo`, `git`, `python3`, `lz4`, `cpio`, `openjdk-17`
-- منیفست مینیمال TWRP شاخهٔ `twrp-12.1`
+ورک‌فلو آماده در `.github/workflows/build-twrp.yml` قرار دارد و همان روشی
+است که همهٔ بیلدهای تست‌شده با آن ساخته شده‌اند.
 
-```bash
-sudo apt install -y git curl python3 lz4 cpio openjdk-17-jdk \
-    build-essential zip unzip rsync bc ccache
-```
+مراحل:
+
+1. ریپازیتوری را باز کنید → تب **Actions** → workflow
+   **Build TWRP (a14m)**.
+2. **Run workflow** را بزنید و ورودی‌ها را انتخاب کنید:
+   - `variant`: `eng` (پیش‌فرض) یا `userdebug`
+   - `target`: `recoveryimage` (برای این گوشی) یا `bootimage`
+3. پس از پایان (تقریباً ۱ تا ۲ ساعت، سقف ۳۵۰ دقیقه) از بخش
+   **Artifacts** این فایل‌ها را دانلود کنید:
+   - `recovery.img` — تصویر خام
+   - `twrp_a14m.tar.md5` — بستهٔ آمادهٔ Odin (اسلات AP)
+   - `MD5SUMS.txt` و `SHA256SUMS.txt`
+
+نام Artifact به شکل `twrp-a14m-<شمارهٔ اجرا>` است؛ شمارهٔ اجرای بیلد
+تست‌شده **۲۰** است.
+
+آنچه ورک‌فلو انجام می‌دهد:
+
+- آماده‌سازی وابستگی‌های AOSP، `repo` و فضای دیسک
+- `repo init/sync` روی منیفست
+  `minimal-manifest-twrp/platform_manifest_twrp_aosp` شاخهٔ `twrp-12.1`
+  (نسخهٔ `--depth=1`)
+- کپی درخت دستگاه به `device/samsung/a14m`
+- اعمال **همهٔ** `patches/*.patch` روی `bootable/recovery`:
+
+  ```bash
+  patch -p1 --forward --fuzz=3 -d bootable/recovery < patches/0001-....patch
+  ```
+
+- ساخت با `lunch twrp_a14m-eng` و `mka recoveryimage`
+- ساخت پکیج Odin (tar + MD5) و آپلود Artifact
+
+نکات:
+
+- کش `ccache` عمداً استفاده نمی‌شود؛ در رانر GitHub روی
+  `~/.ccache/tmp` خطای `Read-only file system` می‌داد.
+- اگر تگ `v*` پوش کنید، علاوه بر Artifact یک **GitHub Release** هم ساخته
+  می‌شود:
+  ```bash
+  git tag v1.0.0 && git push origin v1.0.0
+  ```
+- در صورت شکست بیلد، Artifactی به نام `build-logs-<run>` شامل
+  `verbose.log.gz` و `error.log` آپلود می‌شود.
+- اجرای خودکار روی هر push به‌صورت پیش‌فرض خاموش است (هر اجرا از سهمیهٔ
+  Actions کم می‌کند)؛ برای فعال‌کردن، بلوک `push.branches` را در فایل
+  workflow از کامنت خارج کنید.
 
 ---
 
-## ۵) دستورهای ساخت (اجرا نشده‌اند)
+## ۶) ساخت محلی (اختیاری)
 
 ```bash
 mkdir -p ~/twrp && cd ~/twrp
@@ -125,90 +210,46 @@ repo init --depth=1 \
   -b twrp-12.1
 repo sync -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
 
-# اتصال این درخت به سورس
 ln -s /root/device/samsung/a14m device/samsung/a14m
+
+# پچ‌ها را دستی اعمال کنید (ورک‌فلو این کار را خودکار انجام می‌دهد)
+shopt -s nullglob
+for p in device/samsung/a14m/patches/*.patch; do
+  echo "--- $p"
+  patch -p1 --forward --fuzz=3 -d bootable/recovery < "$p"
+done
 
 . build/envsetup.sh
 lunch twrp_a14m-eng
 mka recoveryimage -j"$(nproc)"
 ```
 
-خروجی:
+خروجی: `out/target/product/a14m/recovery.img`
 
-```
-out/target/product/a14m/recovery.img
-```
-
-اگر می‌خواهید بدون سینک کامل AOSP فقط درخت را اعتبارسنجی کنید، حداقل
-`BoardConfig.mk` و `recovery.fstab` را با `mka` واقعی نمی‌توان تست کرد؛
-برای تست ساخت به منیفست بالا نیاز است.
-
-### ۵.۱) ساخت با GitHub Actions (بدون نیاز به سیستم شخصی)
-
-ورک‌فلو آماده در `.github/workflows/build-twrp.yml` قرار دارد.
-
-مراحل:
-
-1. کل پوشهٔ `device/samsung/a14m` را (همراه با `.github`) در یک ریپازیتوری
-   گیت‌هاب پوش کنید. نام پیشنهادی مخزن: `android_device_samsung_a14m`.
-2. در گیت‌هاب به تب **Actions** بروید و workflow
-   **Build TWRP (a14m)** را انتخاب کنید.
-3. **Run workflow** را بزنید و ورودی‌ها را انتخاب کنید:
-   - `variant`: `eng` (یا `userdebug`)
-   - `target`: `recoveryimage` (برای این گوشی) یا `bootimage`
-4. پس از پایان کار، از بخش **Artifacts** این فایل‌ها را دانلود کنید:
-   - `recovery.img` — تصویر خام ریکاوری
-   - `twrp_a14m.tar.md5` — بستهٔ آمادهٔ Odin (اسلات AP)
-   - `MD5SUMS.txt` و `SHA256SUMS.txt`
-
-نکات:
-
-- ورک‌فلو خودش JDK 11، ابزار `repo`، وابستگی‌های AOSP و فضای دیسک لازم را
-  آماده می‌کند؛ منیفست `twrp-12.1` را `--depth=1` سینک می‌کند و درخت را
-  داخل `device/samsung/a14m` قرار می‌دهد.
-- زمان تقریبی اجرا ۱ تا ۲ ساعت است (سقف ۶ ساعت).
-- از `ccache` عمداً استفاده نمی‌شود؛ کش `actions/cache` روی رانر خراب می‌شد
-  (`Read-only file system` روی `~/.ccache/tmp`) و چون فقط در بیلد موفق
-  ذخیره می‌شد، کمکی نمی‌کرد.
-- اگر یک تگ مثل `v1.0.0` پوش کنید:
-  ```bash
-  git tag v1.0.0 && git push origin v1.0.0
-  ```
-  علاوه بر Artifact، یک **GitHub Release** هم با همان فایل‌ها ساخته می‌شود.
-- اگر بیلد شکست خورد، Artifactی به نام `build-logs-<run>` شامل
-  `verbose.log.gz` و `error.log` را دانلود کنید.
-- به‌صورت پیش‌فرض بیلد فقط با `workflow_dispatch` و تگ اجرا می‌شود.
-  برای اجرا روی هر push، بلوک `push.branches` را در فایل workflow از حالت
-  کامنت خارج کنید (هر اجرا از سهمیهٔ Actions کم می‌کند).
-- خروجی با کلید تست AOSP امضا می‌شود؛ همچنان به `vbmeta` غیرفعال‌شده روی
-  گوشی نیاز دارید (بخش ۶.۲).
+پیش‌نیازها: لینوکس ۶۴ بیتی، حدود ۱۰۰ گیگ فضای آزاد، ۸ تا ۱۶ گیگ رم،
+و `git`, `repo`, `python3`, `lz4`, `cpio`, `openjdk-11`.
 
 ---
 
-## ۶) نصب روی گوشی
+## ۷) نصب روی گوشی
 
-### ۶.۱ آماده‌سازی (مهم)
+### ۷.۱ آماده‌سازی
 
 1. حساب سامسونگ و قفل صفحه را بردارید.
 2. `OEM unlocking` را در Developer options فعال کنید.
 3. گوشی را به اینترنت وصل کنید تا **KG State = Checking** و
-   **RMM State = Normal** شود (در غیر این صورت فلش بلاک می‌شود و ممکن است
-   ۷ روز انتظار لازم باشد).
+   **RMM State = Normal** شود؛ در غیر این صورت Odin فلش را بلاک می‌کند
+   و ممکن است ۷ روز انتظار لازم باشد.
 4. با `Volume Down + Volume Up` + کابل USB وارد **Download Mode** شوید و
-   قفل بوت‌لودر را باز کنید (پس از آن همهٔ داده‌ها پاک می‌شود).
-5. پس از باز شدن قفل، حتماً یک بار وارد سیستم شوید و Developer options را
-   دوباره بررسی کنید.
+   قفل بوت‌لودر را باز کنید (همهٔ داده‌ها پاک می‌شود).
+5. یک بار وارد سیستم شوید و Developer options را دوباره بررسی کنید.
 
-### ۶.۲ غیرفعال کردن AVB — اجباری (علت اصلی بوت‌نشدن)
+### ۷.۲ غیرفعال کردن AVB — اجباری
 
-`recovery.img` استوک با کلید سامسونگ امضا شده و `vbmeta` گوشی نیز هشِ همان
-تصویر استوک را نگه می‌دارد. تصویری که این درخت می‌سازد با **کلید تست AOSP**
-امضا می‌شود؛ بنابراین تا وقتی `vbmeta` استوک روی گوشی است، بوت‌لودر هش را
-رد می‌کند و نتیجه دقیقاً همان چیزی است که مشاهده شد:
-
-```
-لوگوی سامسونگ  →  حدود ۱۰ ثانیه  →  ریبوت (بدون ورود به ریکاوری)
-```
+`recovery.img` استوک با کلید سامسونگ امضا شده و `vbmeta` گوشی هشِ همان
+تصویر را نگه می‌دارد. تصویری که این درخت می‌سازد با **کلید تست AOSP**
+امضا می‌شود؛ تا وقتی `vbmeta` استوک روی گوشی است، بوت‌لودر تصویر را رد
+می‌کند و نتیجه لوگوی سامسونگ و ریبوت است.
 
 روش مطمئن برای سامسونگ (بدون نیاز به fastboot):
 
@@ -216,178 +257,329 @@ out/target/product/a14m/recovery.img
    (`AP_...tar.md5` از SamFW / SamMobile).
 2. اپ **Magisk** را روی گوشی نصب کنید.
 3. در Magisk: `Install` → `Select and Patch a File` → فایل
-   `AP_....tar.md5` را انتخاب کنید. Magisk هم `boot.img` و هم `vbmeta.img`
-   را پچ می‌کند (فلگ‌های verity/verification غیرفعال می‌شوند).
-4. فایل خروجی `magisk_patched-....tar` را با Odin در اسلات **AP** فلش کنید.
-   در Odin گزینهٔ `Auto Reboot` را بردارید.
-5. بعد از `PASS`، بلافاصله با `Volume Up + Power` وارد ریکاوری شوید
-   (نگذارید گوشی به سیستم استوک بوت شود).
+   `AP_....tar.md5` را انتخاب کنید تا `boot.img` و `vbmeta.img` پچ شوند.
+4. فایل خروجی `magisk_patched-....tar` را با Odin در اسلات **AP** فلش
+   کنید و `Auto Reboot` را بردارید.
+5. بعد از `PASS`، بلافاصله با `Volume Up + Power` وارد ریکاوری شوید.
 
-اگر روت نمی‌خواهید: از همان فایل پچ‌شده فقط `vbmeta.img` را بیرون بکشید،
-تنها همان را در یک tar بگذارید و در اسلات AP فلش کنید. در این حالت سیستم
-استوک با هستهٔ استوک بالا می‌آید و فقط قفل AVB غیرفعال می‌شود.
+اگر روت نمی‌خواهید: از همان خروجی فقط `vbmeta.img` را بیرون بکشید و
+تنها همان را در یک tar فلش کنید.
 
-> اگر قبلاً گوشی را با Magisk روت کرده‌اید، `vbmeta` از قبل پچ شده و این
-> مرحله را می‌توانید رد کنید. ولی اگر مطمئن نیستید، همین روش را انجام دهید؛
-> خطرش فقط تریپ‌شدن Knox است که با آنلاک‌کردن بوت‌لودر در هر حال رخ داده.
+### ۷.۳ فلش ریکاوری
 
-### ۶.۳ فلش ریکاوری
+فایل `twrp_a14m.tar.md5` که Artifact تولید می‌کند مستقیماً آمادهٔ Odin است:
 
-روش Odin (رایج‌ترین برای سامسونگ):
+```
+Odin → Options: Auto Reboot را بردارید
+Odin → AP: twrp_a14m.tar.md5 → Start
+```
+
+اگر خودتان می‌خواهید بسازید:
 
 ```bash
 tar -cf twrp_a14m.tar recovery.img
-# در Odin: AP = twrp_a14m.tar  →  Start
+md5sum twrp_a14m.tar >> twrp_a14m.tar
+mv twrp_a14m.tar twrp_a14m.tar.md5
 ```
 
-روش fastboot (در صورت پشتیبانی):
+> بعد از فلش، **بلافاصله** با `Volume Up + Power` (کابل جدا) وارد
+> ریکاوری شوید تا سیستم استوک فرصت بازنویسی ریکاوری را پیدا نکند.
+> در اولین ورود `Swipe to Allow Modifications` را بزنید.
 
-```bash
-fastboot flash recovery recovery.img
-```
+### ۷.۴ به‌روزرسانی TWRP
 
-> پس از فلش، **بلافاصله** با `Volume Up + Power` (کابل جدا) وارد ریکاوری
-> شوید تا سیستم استوک فرصت بازنویسی ریکاوری را پیدا نکند.
-> در اولین ورود، `Swipe to Allow Modifications` را بزنید.
+برای نصب نسخهٔ بعدی لازم نیست Odin را دوباره به کار ببرید؛ فایل
+`recovery.img` را روی MicroSD کپی کنید و داخل TWRP از
+**Install → Install Image → Recovery** استفاده کنید. سپس
+**Reboot → Recovery** را بزنید (بخش ۸.۴).
 
-### ۶.۴ اگر باز هم روی لوگو ماند
+### ۷.۵ بازگشت به استوک
 
-ترتیب بررسی:
-
-1. **اول `vbmeta`**: تایید کنید که پچ‌شده فلش شده است. اگر `vbmeta` استوک
-   باشد، هیچ تصویر غریبه‌ای (حتی سالم) بوت نمی‌شود.
-2. **ماژول‌ها**: در رم‌دیسک باید `/lib/modules/modules.load.recovery` و ۱۹۸
-   فایل `.ko` وجود داشته باشد. این نسخهٔ درخت با `PRODUCT_COPY_FILES` و
-   `find-copy-subdir-files` آن‌ها را داخل رم‌دیسک می‌گذارد. برای بررسی
-   خروجی بدون باز کردن گوشی:
-   ```bash
-   # بعد از دانلود recovery.img از Artifact
-   python3 - <<'PY'
-   import struct
-   d = open('recovery.img','rb').read()
-   ks, = struct.unpack_from('<I', d, 8)
-   rs, = struct.unpack_from('<I', d, 16)
-   off = 4096 + ((ks + 4095)//4096)*4096
-   open('/tmp/r.ramdisk','wb').write(d[off:off+rs])
-   PY
-   lz4 -dc /tmp/r.ramdisk | cpio -t 2>/dev/null | grep -c '^lib/modules/.*\.ko$'
-   # باید 198 چاپ شود
-   ```
-3. **لاگ**: اگر TWRP بالا آمد ولی صفحه سیاه بود، با کابل به PC وصل کنید و
-   `adb devices` بزنید. اگر دستگاه دیده شد، `adb shell dmesg` و
-   `adb shell cat /tmp/recovery.log` را ذخیره کنید.
-4. اگر اصلاً adb نیامد و فقط لوگو بود، مشکل در کرنل/init اولیه است؛ در آن
-   صورت خروجی `recovery.img` را با مقدارهای هدر استوک مقایسه کنید (بخش ۲).
+`recovery.img` استوک را از همان `AP_...tar.md5` بیرون بکشید (یا از بکاپ
+خود TWRP) و با Odin در اسلات AP فلش کنید. فلش `boot`/`lk`/`preloader`
+لازم نیست و توصیه نمی‌شود.
 
 ---
 
-## ۷) محدودیت‌ها و هشدارها
+## ۸) امکانات و رفتار پارتیشن‌ها
 
-### رمزگشایی (Decryption) — غیرفعال
+### ۸.۱ پارتیشن‌های منطقی `super`
 
-اندروید ۱۵ سامسونگ از FBE با کلیدهای سخت‌افزاری (KeyMint/TEE) استفاده
-می‌کند. برای رمزگشایی در TWRP به باینری‌ها و کتابخانه‌های اختصاصی سامسونگ
-(`keymaster`, `keymint`, `tee`, …) نیاز است که در رم‌دیسک ریکاوری استوک
-موجود نیستند. به همین دلیل در `BoardConfig.mk` این گزینه‌ها عمداً
-کامنت شده‌اند:
+هشت پارتیشن منطقی در `recovery.fstab` تعریف شده‌اند:
 
-```
-# TW_INCLUDE_CRYPTO := true
-# TW_INCLUDE_CRYPTO_FBE := true
-# TW_INCLUDE_FBE_METADATA_DECRYPT := true
-```
+`system`, `vendor`, `product`, `odm`, `system_ext`, `vendor_dlkm`,
+`system_dlkm`, `odm_dlkm`
 
-روی این گوشی `/data` علاوه بر FBE، **رمزنگاری متادیتا** هم دارد
-(`dm-default-key`): کل بلوک‌های خام `userdata` با کلیدی که در پارتیشن
-`/metadata` (`md_udc`, p29) ذخیره شده رمز شده‌اند. به همین دلیل حتی
-`sblkid` هم روی `/dev/block/mmcblk0p52` نمی‌تواند سوپر‌بلوک f2fs را
-تشخیص دهد (خودِ سوپر‌بلوک رمز است).
-
-نتیجه: TWRP نمی‌تواند `/data` رمزنگاری‌شده را باز کند. برای بکاپ از
-**MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید. اگر داده‌ها برایتان
-مهم نیست، `Format Data` بزنید (همهٔ اطلاعات پاک می‌شود) تا `/data` قابل
-استفاده شود.
-
-### مانت شدن پارتیشن‌ها
-
-پارتیشن‌های منطقی داخل `super` (`system`, `vendor`, `product`, `odm`,
-`system_ext`, `*_dlkm`) در متادیتای super سامسونگ با اتریبیوت «فقط‌خواندنی»
-(liblp `attr=0x1`) علامت خورده‌اند. بنابراین دستگاه‌های `dm-*` که TWRP
-می‌سازد فقط‌خواندنی‌اند و تلاش برای مانت با `mount(2)` بدون `MS_RDONLY`
-با خطای `EACCES` (`Permission denied`) شکست می‌خورد.
-
-به همین دلیل در `recovery.fstab` به همهٔ این ورودی‌ها `fsflags=ro` اضافه
-شده است تا TWRP با `MS_RDONLY` مانت کند. اگر خواستید داخل این پارتیشن‌ها
-بنویسید، باید متادیتای super بازنویسی شود (خطرناک است و توصیه نمی‌شود).
-همچنین پرچم قدیمی و نامعتبر `wipeing`/`wipeing=1` با پرچم درست TWRP یعنی
-`wipeingui` جایگزین شده است.
-
-### AVB / Knox
-
-- این درخت `Knox` را تریپ نمی‌کند اما باز کردن بوت‌لودر به‌هرحال
-  `Warranty Bit` را ۱ می‌کند (برگشت‌ناپذیر).
-- تصویر تولیدی با کلید تست امضا می‌شود؛ بدون vbmeta پچ‌شده بوت نمی‌شود.
-- `PLATFORM_SECURITY_PATCH` روی `2099-12-31` تنظیم شده تا anti-rollback
-  جلوی بوت را نگیرد.
-
-### تاچ و نمایشگر
-
-ماژول‌های تاچ/پنل از همان ریکاوری استوک آمده‌اند، پس روی نسخهٔ سخت‌افزاری
-همین بیلد باید کار کنند. اگر گوشی شما پنل/تاچ با نسخهٔ دیگر دارد
-(مثلاً `focaltech` به‌جای `himax`)، ممکن است تاچ پاسخ ندهد؛ در آن صورت
-`recovery/root/lib/modules` را با ماژول‌های همان فریمور جایگزین کنید.
-
-روشنایی از `mediatek,lcd-backlight` با بازهٔ `0x00..0xFF` خوانده می‌شود:
+هر ورودی این فلگ‌ها را دارد:
 
 ```
-TW_BRIGHTNESS_PATH := "/sys/class/leds/lcd-backlight/brightness"
-TW_MAX_BRIGHTNESS   := 255
+flags=display=<name>;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 ```
 
-### MTK / Preloader
+- **`fsflags=ro` الزامی است.** سامسونگ این پارتیشن‌ها را در متادیتای
+  `super` با اتریبیوت فقط‌خواندنی (`liblp attr=0x1`) علامت زده است؛
+  دستگاه‌های `dm-*` فقط‌خواندنی‌اند و مانت بدون `MS_RDONLY` با
+  `EACCES (Permission denied)` شکست می‌خورد.
+- **`flashimg=1`** اجازه می‌دهد با `Install Image` یک ایمیج خام
+  (`system.img`, `vendor.img`, …) مستقیم روی همان پارتیشن منطقی نوشته
+  شود؛ پچ ۰۰۰۸ اندازهٔ ایمیج (ساده یا sparse) را بررسی و آن را روی
+  `dm` مربوطه می‌نویسد.
+- **`wipeingui`** باعث می‌شود پارتیشن در **Advanced Wipe** دیده شود.
+  TWRP هنگام پارس fstab هر پارتیشن `Is_Super` را «غیرقابل پاک‌کردن»
+  می‌کند و بعدتر فلگ‌ها را اعمال می‌کند؛ پچ ۰۰۱۲ این رفتار را فقط وقتی
+  تغییر می‌دهد که خود fstab صریحاً `wipeingui` خواسته باشد
+  (`Wipe_Available_in_GUI`). بکاپ برای این پارتیشن‌ها همچنان بسته است
+  (`Set_Can_Be_Backed_Up(false)`) و در منوی Backup ظاهر نمی‌شوند.
+- **پاک‌کردن فایل‌سیستم** روی `super` فقط وقتی موفق می‌شود که متادیتای
+  `super` قابل نوشتن باشد؛ در این گوشی نیست. برای بازگرداندن یک پارتیشن
+  از `Install Image` استفاده کنید، نه Wipe.
+- خود پارتیشن `/super` هم توسط TWRP به‌صورت یک ورودی جداگانه اضافه
+  می‌شود (پچ ۰۰۰۲ اندازهٔ آن را از روی بلوک‌دستگاه می‌خواند) و برای
+  dd/بکاپ خام در دسترس است.
 
-- هرگز `preloader` یا `lk` را فلش نکنید؛ ریسک بریک سخت (hard brick) دارد.
-- این درخت فقط پارتیشن `recovery` را هدف می‌گیرد و به `boot`، `init_boot`
-  یا `super` دست نمی‌زند.
+### ۸.۲ تصاویر بوت و ریکاوری
 
-### ریسک کلی
+`boot`, `recovery`, `init_boot`, `vendor_boot`, `dtbo` با `flashimg=1`
+و `backup=1` تعریف شده‌اند؛ می‌توانید بکاپ ایمیج بگیرید یا ایمیج جدید
+بنویسید. `misc` فقط برای نمایش/خواندن است و عمداً `backup` ندارد تا
+BCB ریکاوری اشتباهی بازگردانی نشود.
 
-ساخت و فلش ریکاوری کاستوم روی سامسونگ/MTK بدون ضمانت است. قبل از هر
-کاری از داده‌های مهم بکاپ بگیرید و از فایل‌های استوک فریمور خودتان
-(`AP`, `BL`, `CSC`) نگه‌داری کنید.
+### ۸.۳ Advanced Wipe و پارتیشن‌های حساس
+
+- قابل پاک‌کردن: `/data`, `/cache`, `/metadata`, `/external_sd` و
+  پارتیشن‌های منطقی (با محدودیت بخش ۸.۱).
+- **هرگز** روی `efs`, `persist`, `nvdata` گزینهٔ wipe فعال نشده است؛
+  این‌ها IMEI، کالیبراسیون رادیو و دادهٔ سنسورها را نگه می‌دارند و پس از
+  پاک‌شدن قابل بازیابی نیستند. این پارتیشن‌ها فقط برای بکاپ و مانت
+  فقط‌خواندنی (`fsflags=ro`) در fstab هستند.
+- `/prism`, `/optics`, `/md1img`, `/spmfw`, `/scp1`, `/sspm_1` فقط
+  برای نمایش/بکاپ تعریف شده‌اند.
+- `/efs` در زمان تلاش رمزگشایی به‌صورت موقت `remount,rw` می‌شود، چون
+  TEEGRIS و gatekeeper روی استوک هم روی همین پارتیشن‌ها می‌نویسند؛ این
+  کار فقط داخل `decrypt_stack.sh` انجام می‌شود و روی رفتار منوی Wipe
+  اثری ندارد.
+
+### ۸.۴ مکانیزم `Reboot → Recovery`
+
+در این گوشی `Reboot → Recovery` با مسیر معمول init کار **نمی‌کرد**:
+TWRP فایل `/etc/recovery.fstab` را با فرمت خودش (نه `fs_mgr`) جایگزین
+می‌کند، بنابراین `read/write_bootloader_message()` در init شکست می‌خورد،
+init بدون ریبوت برمی‌گردد و چون سرویس `recovery` در
+`init.recovery.service.rc` گزینهٔ `oneshot` ندارد، init دوباره همان TWRP
+را اجرا می‌کند؛ نتیجه «ریبوت نرم» بدون لوگوی سامسونگ بود.
+
+اصلاح (پچ ۰۰۱۳ + اسکریپت):
+
+1. `rebootrecovery.sh` خودش BCB را در `/dev/block/by-name/misc` می‌نویسد:
+   `command[32]` و `status[32]` صفر می‌شوند و رشتهٔ `boot-recovery`
+   نوشته می‌شود؛ سپس با `od` بررسی و در `/tmp/rebootrecovery.log`
+   ثبت می‌شود.
+2. `tw_reboot(rb_recovery)` به‌جای تکیه بر init، مستقیماً
+   `syscall(__NR_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
+   LINUX_REBOOT_CMD_RESTART2, "recovery")` را صدا می‌زند.
+3. اگر syscall رد شود، به `property_set(ANDROID_RB_PROPERTY, "reboot,")`
+   برمی‌گردد؛ BCB نوشته‌شده همچنان بوت‌لودر را به ریکاوری می‌فرستد.
+
+شاهد این عملیات در نشست بعدی در
+`/sdcard/twrp-diag/rebootrecovery.log` (یا `/external_sd/twrp-diag/` و
+`/cache/twrp-diag/`) موجود است.
+
+### ۸.۵ حافظهٔ داخلی و MicroSD
+
+- MicroSD روی `/external_sd` مانت می‌شود و با exFAT، vfat و ext4 کار
+  می‌کند؛ TWRP هنگام مانت خودش فایل‌سیستم را تشخیص می‌دهد.
+- `/sdcard` به `/data/media/0` نگاشت می‌شود
+  (`RECOVERY_SDCARD_ON_DATA := true`) و فقط وقتی `/data` مانت شده باشد
+  در دسترس است. بکاپ‌ها را روی MicroSD بگذارید.
+
+### ۸.۶ ابزارهای همراه
+
+`fastbootd`, `repacktools`, `lptools`, `resetprop`/`libresetprop`,
+`ntfs-3g` و `TW_EXCLUDE_TWRPAPP` در `BoardConfig.mk` فعال/غیرفعال
+شده‌اند. APEX loader عمداً حذف شده است، چون روی کرنل ۶.۶ این دستگاه با
+خطای `Value too large for defined data type` شکست می‌خورد و
+`twrp.apex.loaded=false` تولید می‌کرد؛ هیچ‌چیز در این ریکاوری به
+کتابخانه‌های APEX نیاز ندارد.
+
+### ۸.۷ لاگ تشخیصی
+
+سرویس `twrpdiag` (oneshot، از `init.recovery.mt6768.rc`) اسکریپت
+`/sbin/twrp-diag.sh` را اجرا می‌کند. حدود ۴۵ ثانیه پس از بوت، این
+فایل‌ها در اولین مقصد قابل نوشتن ذخیره می‌شوند:
+
+| مسیر | توضیح |
+|---|---|
+| `/sdcard/twrp-diag/` | فقط اگر `/data` مانت شده باشد |
+| `/external_sd/twrp-diag/` | MicroSD (پایدارترین) |
+| `/cache/twrp-diag/` | پارتیشن cache |
+| `/metadata/twrp-diag/` | `md_udc`، بدون رمز و پایدار |
+| `/tmp/twrp-diag/` | فقط همین نشست |
+
+فایل‌های مهم:
+
+- `diag.txt` — dmesg، ماژول‌های لودشده، دستگاه‌های ورودی/i2c، مانت‌ها،
+  وضعیت TEE و رمزگشایی، و ۱۲۸ بایت اول `misc`/`boot_para`/`para`
+- `recovery.log` — لاگ خود TWRP
+- `last_kmsg.txt` — لاگ کرنل نشست قبل (برای بررسی ریبوت)
+- `rebootrecovery.log` — شاهد نوشتن BCB
+- `decrypt.log`, `fstab_crypto.log` — جزئیات تلاش رمزگشایی
+- `SAVED-TO.txt` — فهرست مقاصدی که فایل‌ها در آن‌ها ذخیره شده‌اند
+
+برای ارسال، معمولاً همان `diag.txt` کافی است؛ اگر خالی نبود
+`recovery.log` هم مفید است.
 
 ---
 
-## ۸) استخراج مجدد از فایل استوک
+## ۹) محدودیت رمزگشایی `/data`
 
-اگر فریمور گوشی را آپدیت کردید و خواستید همهٔ prebuiltها را از
-`recovery.img` جدید دوباره بسازید:
+اندروید ۱۵ سامسونگ برای `/data` هم **FBE v2** و هم **رمزنگاری متادیتا**
+(`dm-default-key`) دارد: کل بلوک‌های خام `userdata` با کلیدی رمز شده‌اند
+که در `/metadata` (`md_udc`, p29) نگه‌داری می‌شود. برای بازکردن آن باید
+پشتهٔ امنیتی سامسونگ (TEEGRIS، KeyMint، gatekeeper) بالا بیاید.
+
+درخت این پشته را همراه دارد و تلاش می‌کند آن را از پارتیشن `recovery`
+اجرا کند:
+
+- `decrypt/langsdorff_decrypt.cpp` — بازکردن KeyMint و ساخت
+  `dm-default-key` روی `userdata`
+- `decrypt/gk_verify.cpp` — تأیید رمز با gatekeeper هیدل ۱.۰
+- `recovery/root/system/bin/decrypt.sh`, `decrypt_stack.sh`,
+  `fstab_crypto.sh`, `data_release.sh`
+- `recovery/root/system/tee/` — کتابخانه‌ها و باینری‌های TEE
+
+اما شواهد لاگ‌ها نشان می‌دهد **بوت‌لودر در حالت ریکاوری عمداً TEE را
+بالا نمی‌آورد**:
+
+```
+BOOTPROF: ... lk=6183, tfa=0, sec_os=0, gz=0
+log_store: bootmode: 0x2
+[rpmb] Recovery or Charging boot. Do not run TEEgris RPMB
+TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
+```
+
+یعنی `tfa=0` و `sec_os=0` و پیام صریح «در بوت ریکاوری TEEGRIS را اجرا
+نکن». نتیجه این است که KeyMint/gatekeeper در دسترس نیستند و هیچ
+تغییری در کرنل یا رم‌دیسک نمی‌تواند این را جبران کند؛ محدودیت در
+پارتیشن `lk` (بوت‌لودر) است.
+
+پیامدها:
+
+- TWRP نمی‌تواند `/data` رمزنگاری‌شده را باز کند؛ `/sdcard` هم در
+  دسترس نیست.
+- برای بکاپ از **MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید.
+- اگر داده‌ها مهم نیستند، `Format Data` بزنید تا `/data` با کلید تازه
+  قابل استفاده شود.
+- تنها مسیر فنی ممکن برای رمزگشایی، اجرای TWRP از پارتیشن `boot` در
+  بوت عادی است (که TEE بالا می‌آید) یا تغییر `lk`؛ هیچ‌کدام در این
+  نسخه انجام نشده و ریسک خودشان را دارند.
+
+---
+
+## ۱۰) عیب‌یابی
+
+| نشانه | علت احتمالی | کار |
+|---|---|---|
+| لوگوی سامسونگ و ریبوت | `vbmeta` استوک | بخش ۷.۲ |
+| صفحه سیاه ولی `adb devices` جواب می‌دهد | روشنایی/پنل یا ماژول | `diag.txt` و `TW_BRIGHTNESS_PATH` را بررسی کنید |
+| تاچ کار نمی‌کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
+| `Reboot → Recovery` بدون لوگو و سریع | BCB نوشته نشده | `misc` را در `diag.txt` ببینید؛ نسخهٔ دارای پچ ۰۰۱۳ را فلش کنید |
+| `/data` مانت نمی‌شود | رمزنگاری متادیتا | طبیعی است؛ بخش ۹ |
+| پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
+| `E:Unhandled flag: 'inlinecrypt'` | توکن ناشناخته در fstab | `inlinecrypt` را به `/data` اضافه نکنید |
+| Odin روی `FAIL` می‌ماند | KG/RMM یا `vbmeta`/مدل اشتباه | بخش ۷.۱ |
+
+اگر TWRP بالا می‌آید ولی مشکلی هست، اول `diag.txt` را از MicroSD
+بردارید؛ تقریباً همهٔ سؤال‌های «چرا» در همان یک فایل جواب دارند.
+
+---
+
+## ۱۱) فهرست پچ‌ها
+
+پچ‌ها روی `bootable/recovery` (شاخهٔ `android-12.1`) اعمال می‌شوند.
+شماره‌های ۰۰۰۴ و ۰۰۰۶ حذف شده‌اند؛ محتوایشان در پچ‌های بعدی ادغام شد.
+
+| پچ | موضوع |
+|---|---|
+| `0001-decrypt-through-ce-unlock` | هدایت رمز به `decrypt_user.sh` و پشتهٔ TEE به‌جای keymaster 4 HIDL |
+| `0002-super-partition-size` | نمایش اندازهٔ واقعی `/super` در صفحهٔ بکاپ |
+| `0003-data-on-decrypted-mapper` | مانت `/data` روی `/dev/block/mapper/userdata` پس از رمزگشایی |
+| `0005-format-data-raw-partition` | آزادکردن `dm-default-key` پیش از فرمت `/data` |
+| `0007-storage-path-after-late-data-mount` | اصلاح `/sdcard` وقتی `/data` دیر مانت می‌شود |
+| `0008-flash-image-to-logical-partitions` | نوشتن ایمیج خام/sparse روی پارتیشن‌های منطقی |
+| `0009-wait-for-decrypt-during-splash` | صبر برای `decrypt.sh` در اسپلش و تنظیم وضعیت رمز |
+| `0010-fscrypt-policies-through-decrypt-refs` | نگاشت policyهای fscrypt v2 در backup/restore |
+| `0011-remount-data-under-stale-sdcard-bind` | رفع bind کهنهٔ `/sdcard` روی `/data` |
+| `0012-keep-logical-wipe-flags` | احترام به `wipeingui` برای پارتیشن‌های `super` |
+| `0013-direct-reboot-recovery` | `LINUX_REBOOT_CMD_RESTART2` مستقیم برای Reboot→Recovery |
+
+---
+
+## ۱۲) تغییرات
+
+### بیلد ۲۰ — `363347a`
+
+- پچ ۰۰۱۲: پارتیشن‌های منطقی با `wipeingui` در **Advanced Wipe** دیده
+  می‌شوند (بکاپ همچنان مدیریت‌شده).
+- پچ ۰۰۱۳: **Reboot → Recovery** با نوشتن BCB و `RESTART2` مستقیم
+  درست شد؛ دیگر «ریبوت نرم» به خود TWRP نداریم.
+- `rebootrecovery.sh`: پاک‌کردن command/status، نوشتن `boot-recovery`،
+  بررسی با `od` و کپی شاهد در `/sdcard`, `/external_sd`, `/cache`.
+- `twrp-diag.sh`: افزودن dump پارتیشن‌های `misc`, `boot_para`, `para`
+  و کپی `/proc/last_kmsg` و `/tmp/rebootrecovery.log`.
+- فلگ `flashimg=1` برای هر هشت پارتیشن منطقی.
+
+### بیلد ۱۹ — `6fae5cf`
+
+- مانت فقط‌خواندنی پارتیشن‌های `super` (`fsflags=ro`) و اصلاح فلگ‌های
+  fstab؛ حذف ورودی‌های مرده.
+- `efs`/`sec_efs` در زمان رمزگشایی موقتاً read-write می‌شوند.
+- بهبود تشخیص و ذخیرهٔ `twrp-diag` روی `/metadata` و MicroSD (exFAT).
+
+### بیلد ۱۸ — `e4e351b` و پیش از آن
+
+- حذف APEX برای رفع خطاهای `twrp.apex.loaded=false`.
+- افزودن `flashimg` و تلاش برای نوشتن روی پارتیشن‌های منطقی.
+- ساخت پشتهٔ رمزگشایی (KeyMint AIDL + TEEGRIS + gatekeeper) و کشف
+  اینکه بوت‌لودر در حالت ریکاوری TEE را اجرا نمی‌کند.
+
+---
+
+## ۱۳) استخراج مجدد prebuiltها
+
+اگر فریمور گوشی را آپدیت کردید:
 
 ```bash
 cd device/samsung/a14m
 ./tools/extract_from_recovery.sh /path/to/recovery.img
 ```
 
-اسکریپت این کارها را انجام می‌دهد:
-
-1. خواندن هدر Android boot v2 و محاسبهٔ آفست‌ها با page size.
-2. استخراج `prebuilt/kernel`, `prebuilt/dtbo.img`, `prebuilt/dtb.img`.
-3. باز کردن رم‌دیسک (gzip / lz4 / xz / lzma / bzip2) و استخراج
-   `lib/modules/*` به `prebuilt/modules/`.
-4. به‌روزرسانی `recovery/root/init.recovery.mt6768.rc` و
-   `init.recovery.samsung.rc`.
-5. چاپ MD5 فایل‌های تولیدشده برای مقایسه.
-
-پیش‌نیاز اسکریپت: `python3` و یکی از `lz4`/`xz`/`gzip` بسته به نوع
-فشرده‌سازی رم‌دیسک.
+اسکریپت هدر بوت v2 را می‌خواند، آفست‌ها را با page size حساب می‌کند،
+`prebuilt/kernel`, `dtbo.img`, `dtb.img` را بیرون می‌کشد، رم‌دیسک را
+(gzip/lz4/xz/lzma/bzip2) باز می‌کند و `lib/modules/*` را در
+`prebuilt/modules/` می‌ریزد، فایل‌های rc را به‌روز می‌کند و MD5ها را
+چاپ می‌کند. پیش‌نیاز: `python3` و ابزار فشرده‌سازی متناظر.
 
 ---
 
-## ۹) فایل‌های مرجع
+## ۱۴) هشدارها
+
+- هرگز `preloader`, `lk`, `tee1` یا `tzar` را فلش نکنید؛ ریسک بریک سخت
+  دارد. این درخت فقط `recovery` را هدف می‌گیرد.
+- بازکردن بوت‌لودر `Warranty Bit` را برای همیشه ۱ می‌کند (Knox تریپ).
+- `PLATFORM_SECURITY_PATCH` روی `2099-12-31` است تا anti-rollback جلوی
+  بوت تصویر کاستوم را نگیرد.
+- قبل از هر کاری از داده‌های مهم بکاپ بگیرید و فایل‌های استوک فریمور
+  خودتان (`AP`, `BL`, `CSC`) را نگه دارید.
+
+---
+
+## ۱۵) مراجع
 
 - منیفست: `minimal-manifest-twrp/platform_manifest_twrp_aosp` شاخهٔ `twrp-12.1`
+- سورس TWRP: `TeamWin/android_bootable_recovery` شاخهٔ `android-12.1`
 - fstab و نام پارتیشن‌ها: `system/etc/recovery.fstab` داخل رم‌دیسک استوک
-- نام پنل/تاچ/بک‌لایت: `dtbo.img` (۱۶۴ فرگمنت) و ماژول‌های استوک
+  (`tools/stock_recovery.fstab` برای مقایسه)
+- نام پنل/تاچ/بک‌لایت: `dtbo.img` و ماژول‌های استوک
 - درخت‌های مشابه (فقط برای مقایسه، نه کپی): `twrpdtgen/android_device_samsung_a14m`,
   `forforksake/recovery_device_samsung_a14m`
 
