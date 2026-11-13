@@ -2,6 +2,9 @@ on init
     setprop sys.usb.configfs 1
     setprop sys.usb.controller "musb-hdrc"
     setprop sys.usb.ffs.aio_compat 0
+    # one image serves every a14m variant: take ro.product.model from the
+    # bootloader (ro.boot.em.model) before adbd and the TWRP GUI start
+    exec_start model-from-bootloader
 
 on fs
     # these are plain files in the device tree, and the ramdisk builder's
@@ -51,6 +54,14 @@ on property:twrp.decrypt.run=1
 # ---------------------------------------------------------------------------
 # Variant handling: one image for every a14m model and bootloader setting
 # ---------------------------------------------------------------------------
+# copies ro.boot.em.model into ro.product.*model (see model_from_bootloader.sh)
+service model-from-bootloader /system/bin/model_from_bootloader.sh
+    user root
+    group root
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
+
 # forces musb into peripheral mode only if usb_restrict=1 (see usb_restrict.sh)
 service usb-restrict /system/bin/usb_restrict.sh
     user root
