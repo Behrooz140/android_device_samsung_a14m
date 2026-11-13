@@ -256,9 +256,22 @@ else
 fi
 
 if [ -d "$WORK/modules" ] && [ -n "$(ls -A "$WORK/modules" 2>/dev/null)" ]; then
+    # prebuilt/modules/Android.mk belongs to the tree, not to the ramdisk
+    if [ -f "$PREBUILT_DIR/modules/Android.mk" ]; then
+        cp -a "$PREBUILT_DIR/modules/Android.mk" "$WORK/modules.Android.mk"
+    fi
     rm -rf "$PREBUILT_DIR/modules"
     mkdir -p "$PREBUILT_DIR/modules"
     cp -a "$WORK/modules/." "$PREBUILT_DIR/modules/"
+    if [ -f "$WORK/modules.Android.mk" ]; then
+        cp -a "$WORK/modules.Android.mk" "$PREBUILT_DIR/modules/Android.mk"
+    fi
+    # stock touch_common_o22.ko refuses to probe in recovery: re-apply the fix
+    if [ -f "$PREBUILT_DIR/modules/touch_common_o22.ko" ]; then
+        echo "==> patching touch_common_o22.ko (see tools/patch_touch_bootmode.py)"
+        python3 "$SCRIPT_DIR/patch_touch_bootmode.py" \
+            "$PREBUILT_DIR/modules/touch_common_o22.ko" | sed 's/^/    /'
+    fi
 else
     echo "    warning: no kernel modules found in ramdisk, keeping existing modules"
 fi
