@@ -41,9 +41,23 @@ on boot
     # the vibrator module can finish probing after "on fs"
     write /sys/class/leds/vibrator/trigger none
     write /sys/class/leds/vibrator/brightness 0
+    # adb/MTP never enumerate when the bootloader passes usb_restrict=1;
+    # see usb_restrict.sh
+    exec_start usb-restrict
 
 on property:twrp.decrypt.run=1
     start decrypt
+
+# ---------------------------------------------------------------------------
+# Variant handling: one image for every a14m model and bootloader setting
+# ---------------------------------------------------------------------------
+# forces musb into peripheral mode only if usb_restrict=1 (see usb_restrict.sh)
+service usb-restrict /system/bin/usb_restrict.sh
+    user root
+    group root
+    seclabel u:r:recovery:s0
+    oneshot
+    disabled
 
 # ---------------------------------------------------------------------------
 # Diagnostic helper: dumps touch/input/module/dmesg info to /sdcard, microSD
