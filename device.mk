@@ -29,6 +29,12 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/vendor/firmware/hx83112f_txd_boe_firmware.bin:recovery/root/vendor/firmware/hx83112f_txd_boe_firmware.bin \
     $(LOCAL_PATH)/recovery/root/vendor/firmware/hx83112f_txd_boe_mpfw.bin:recovery/root/vendor/firmware/hx83112f_txd_boe_mpfw.bin
 
+# Jadard JD9522T touch firmware (BOE panel, lcm_panel=lcd_jd9522t_xx_boe_*),
+# found on SM-A145R units.  jadard_common.c requests this name at probe.
+# Extracted from /vendor/firmware of A145RXXSEDZE4.
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/recovery/root/vendor/firmware/jd9522t_xx_boe_firmware.bin:recovery/root/vendor/firmware/jd9522t_xx_boe_firmware.bin
+
 # Prebuilt kernel modules taken from the stock recovery ramdisk.
 # They MUST match prebuilt/kernel, otherwise display/touch/storage will not work
 # (mediatek-drm, lcd_*, touch_common, ufs-mediatek ... are all modules on this

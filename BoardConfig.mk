@@ -151,6 +151,15 @@ PLATFORM_VERSION := 16.1.0
 # TWRP
 # ----------------------------------------------------------------------------
 TW_THEME := portrait_hdpi
+# Keep the status bar clock out of the display cutout.  The stock framework
+# overlay (config_mainBuiltInDisplayCutout) describes the waterdrop as
+# "M 0,0 H -25.6 V 22.7556 H 25.6 V 0 H 0 Z @dp"; at 450 dpi (2.8125 px/dp)
+# that is x = 468..612, y = 0..64 on the 1080 px wide panel, right where TWRP
+# centers the clock.  The gap right of the notch is too narrow (12 h "12:00 AM"
+# ends at ~810 px, "Battery: 100%" starts at ~786 px, earlier in fr/ru/el/hu),
+# so use the left gap: the CPU text ends at <= ~245 px and x = 280 keeps the
+# clock at ~280..445 px, left of the notch.
+TW_CUSTOM_CLOCK_POS := 280
 TW_EXTRA_LANGUAGES := true
 TW_DEVICE_VERSION := a14m
 TW_SCREEN_BLANK_ON_BOOT := true
