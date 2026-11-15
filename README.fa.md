@@ -420,12 +420,19 @@ init بدون ریبوت برمی‌گردد و چون سرویس `recovery` د�
    default fstab`)؛ حالا در صورت شکست به `/dev/block/by-name/misc`
    برمی‌گردد.
 
-**محدودیت fastbootd:** خودِ fastbootd هم فایل `/etc/recovery.fstab` را با
-`fs_mgr` می‌خواند و شکست می‌خورد
-(`ReadDefaultFstab(): failed to find device default fstab`). این خطا
-غیرمرگبار است و ورود/خروج و `fastboot devices` کار می‌کند، ولی
-پارتیشن‌های منطقی `super` از طریق fastboot دیده نمی‌شوند. برای فلش همان
-پارتیشن‌ها از `Install Image` خود TWRP استفاده کنید.
+**fastbootd:** خودِ fastbootd هم فایل `/etc/recovery.fstab` را با
+`fs_mgr` می‌خواند و خطای
+(`ReadDefaultFstab(): failed to find device default fstab`) را ثبت می‌کند.
+این خطا غیرمرگبار است: ورود/خروج، `fastboot devices` و `fastboot getvar all`
+کار می‌کنند و پارتیشن‌های منطقی `super` **دیده می‌شوند** — `getvar all`
+`system`، `system_ext`، `product`، `vendor`، `odm`، `vendor_dlkm`،
+`odm_dlkm` و `system_dlkm` را با `is-logical:…:yes` فهرست می‌کند، به‌همراه
+`partition-size:super:…`، `is-userspace: yes` و `slot-count: 0`.
+
+تنها **فلش‌کردن** آن‌ها محدود است: متادیتای `super` این پارتیشن‌ها را
+read-only علامت می‌زند (همان فلَگی که `fsflags=ro` را در `recovery.fstab`
+الزامی می‌کند)، پس `fastboot flash` مسیر مطمئنی نیست؛ برای فلش آن‌ها از
+`Install Image` خود TWRP استفاده کنید.
 
 **دمای CPU** (پچ ۰۰۱۶): TWRP به‌طور پیش‌فرض `/sys/class/thermal/thermal_zone0/temp`
 را می‌خواند؛ در این گوشی zone0 همان `mtk-master-charger` است و همیشه ۰
@@ -553,6 +560,8 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 - TWRP نمی‌تواند `/data` رمزنگاری‌شده را باز کند؛ `/sdcard` هم در
   دسترس نیست.
 - برای بکاپ از **MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید.
+- بکاپ دیگر `/data` را از پیش انتخاب نمی‌کند (پچ ۰۰۱۹)، پس بکاپ بقیهٔ
+  پارتیشن‌ها با شکست mount شدن `/data` خراب نمی‌شود (ایشو #۵).
 - اگر داده‌ها مهم نیستند، `Format Data` بزنید تا `/data` با کلید تازه
   قابل استفاده شود.
 - تنها مسیر فنی ممکن برای رمزگشایی، اجرای TWRP از پارتیشن `boot` در
@@ -576,6 +585,9 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | ویبره در ریکاوری کار نمی‌کند | `brightness`/`max_brightness` | پچ ۰۰۱۷؛ مقدار `brightness` را در `diag.txt` ببینید |
 | Dalvik پاک نمی‌شود یا «Failed to wipe dalvik» | `/data` مانت نمی‌شود | پچ ۰۰۱۵؛ `dalvik-cache` داخل `/data` رمزنگاری‌شده بدون رمزگشایی در دسترس نیست |
 | `/data` مانت نمی‌شود | رمزنگاری متادیتا | طبیعی است؛ بخش ۹ |
+| بکاپ روی `/data` شکست می‌خورد و تصاویر نوشته‌شده را پاک می‌کند | `/data` از پیش انتخاب شده بود | تیک `Data` را بردارید، یا از بیلدی با پچ ۰۰۱۹ استفاده کنید (ایشو #۵) |
+| زیپ‌ها بیلد/اثر انگشت اشتباه می‌بینند | شناسهٔ رم‌دیسک هارد‌کد شده بود | بخش ۱۲ / ایشو #۴؛ حالا TWRP آن را از سیستم می‌خواند |
+| `/sec_efs` وجود ندارد | `init.recovery.samsung.rc` هیچ‌وقت import نمی‌شد | بخش ۱۲ / ایشو #۲ |
 | پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
 | `E:Unhandled flag: 'inlinecrypt'` | توکن ناشناخته در fstab | `inlinecrypt` را به `/data` اضافه نکنید |
 | Odin روی `FAIL` می‌ماند | KG/RMM یا `vbmeta`/مدل اشتباه | بخش ۷.۱ |
@@ -608,10 +620,36 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | `0016-autodetect-cpu-temp-zone` | پیدا کردن زون CPU با `type` و fallback به زون باتری |
 | `0017-enable-leds-vibrator-trigger` | درایو ویبره فقط با `brightness` و ریست تریگر |
 | `0018-bootloader-message-misc-fallback` | fallback خواندن/نوشتن BCB به `/dev/block/by-name/misc` |
+| `0019-do-not-preselect-data` | بکاپ دیگر `/data` را در دستگاه‌های dynamic partition از پیش انتخاب نمی‌کند |
 
 ---
 
 ## ۱۲) تغییرات
+
+### منتشرنشده (بیلد بعدی)
+
+رفع چهار ایشوی گزارش‌شده توسط Doorriiaann (ایشوهای #۲ تا #۵ در گیت‌هاب):
+
+- **#۲ — فایل `init.recovery.samsung.rc` هیچ‌وقت import نمی‌شد.** فایل
+  `init.rc` توو TWRP فقط `/init.recovery.${ro.hardware}.rc` را import
+  می‌کند، پس فایلی که `/efs` و `/sec_efs` را می‌سازد کد مرده بود.
+  حالا `init.recovery.mt6768.rc` آن را صریحاً import می‌کند
+  (`import /init.recovery.samsung.rc`).
+- **#۳ — fastbootd پارتیشن‌های منطقی را می‌بیند.** بخش ۸.۵ اصلاح شد:
+  `fastboot getvar all` هر هشت پارتیشن `super` را با `is-logical:…:yes`
+  فهرست می‌کند؛ فقط *فلش‌کردن* آن‌ها به‌خاطر متادیتای read-only
+  `super` محدود است.
+- **#۴ — اثر انگشت و توضیح بیلد به A145PXXSDDZH1 هارد‌کد شده بود.**
+  حالا TWRP مقادیر واقعی `ro.build.fingerprint`، `ro.build.description`
+  و `ro.build.version.*` را از سیستم نصب‌شده می‌خواند
+  (`TW_OVERRIDE_SYSTEM_PROPS` در `BoardConfig.mk`)؛ مقادیر
+  `twrp_a14m.mk` فقط به‌عنوان fallback برای وقتی که `/system` خوانده
+  نمی‌شود نگه داشته شده‌اند.
+- **#۵ — بکاپ، Data را از پیش انتخاب می‌کرد و شکست آن تصاویر نوشته‌شده را
+  پاک می‌کرد.** پچ جدید ۰۰۱۹ جلوی انتخاب پیش‌فرض `/data` را در
+  دستگاه‌های dynamic partition می‌گیرد (`tw_backup_list` حالا خالی است)؛
+  `/data` همچنان `backup=1` را در fstab دارد تا روی فریمور
+  رمزنگاری‌نشده قابل بکاپ باشد.
 
 ### بیلد ۲۳ — `dabe5f4`
 

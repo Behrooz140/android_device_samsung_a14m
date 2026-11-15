@@ -1,3 +1,8 @@
+# Stock recovery imports this from its own init.rc (line 2).  TWRP's init.rc only
+# imports /init.recovery.${ro.hardware}.rc, so without this line the file is dead
+# code and /efs + /sec_efs are never created (issue #2).
+import /init.recovery.samsung.rc
+
 on init
     setprop sys.usb.configfs 1
     setprop sys.usb.controller "musb-hdrc"

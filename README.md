@@ -420,12 +420,19 @@ As of build 23, the correct path is the same as the real boot path:
    default fstab`); it now falls back to `/dev/block/by-name/misc`
    on failure.
 
-**fastbootd limitation:** fastbootd itself also reads `/etc/recovery.fstab` with
-`fs_mgr` and fails
+**fastbootd:** fastbootd itself also reads `/etc/recovery.fstab` with `fs_mgr`
+and logs
 (`ReadDefaultFstab(): failed to find device default fstab`). This error is
-non-fatal, and entering/exiting and `fastboot devices` work, but
-the `super` logical partitions are not visible through fastboot. To flash those
-partitions, use TWRP's own `Install Image`.
+non-fatal: entering/exiting, `fastboot devices` and `fastboot getvar all` all
+work, and the `super` logical partitions **are** visible — `getvar all` lists
+`system`, `system_ext`, `product`, `vendor`, `odm`, `vendor_dlkm`, `odm_dlkm`
+and `system_dlkm` with `is-logical:…:yes`, plus `partition-size:super:…`,
+`is-userspace: yes` and `slot-count: 0`.
+
+Only **flashing** them is limited: the `super` metadata marks these partitions
+read-only (the same flag that forces `fsflags=ro` in `recovery.fstab`), so
+`fastboot flash` cannot be relied on. To flash them, use TWRP's own
+`Install Image`.
 
 **CPU temperature** (patch 0016): by default TWRP reads `/sys/class/thermal/thermal_zone0/temp`;
 on this phone zone0 is `mtk-master-charger` and always returns 0.
@@ -553,6 +560,8 @@ Consequences:
 - TWRP cannot unlock the encrypted `/data`; `/sdcard` is not
   available either.
 - Use **MicroSD** (`/external_sd`) or USB-OTG for backups.
+- Backup no longer preselects `/data` (patch 0019), so a backup of the other
+  partitions is not aborted by the `/data` mount failure (issue #5).
 - If the data doesn't matter, use `Format Data` so that `/data` becomes usable
   with a fresh key.
 - The only technically possible route to decryption is running TWRP from the `boot` partition on
@@ -576,6 +585,9 @@ Consequences:
 | Vibration doesn't work in recovery | `brightness`/`max_brightness` | Patch 0017; check the `brightness` value in `diag.txt` |
 | Dalvik isn't wiped, or "Failed to wipe dalvik" | `/data` doesn't mount | Patch 0015; `dalvik-cache` inside the encrypted `/data` is not accessible without decryption |
 | `/data` doesn't mount | Metadata encryption | This is normal; section 9 |
+| Backup fails on `/data` and deletes the images already written | `/data` was preselected | Untick `Data`, or use a build with patch 0019 (issue #5) |
+| Zips report the wrong build or fingerprint | The ramdisk identity was hard-coded | Section 12 / issue #4; TWRP now reads it from the system |
+| `/sec_efs` is missing | `init.recovery.samsung.rc` was never imported | Section 12 / issue #2 |
 | Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
 | `E:Unhandled flag: 'inlinecrypt'` | Unknown token in the fstab | Don't add `inlinecrypt` to `/data` |
 | Odin gets stuck at `FAIL` | KG/RMM or wrong `vbmeta`/model | Section 7.1 |
@@ -608,10 +620,34 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 | `0016-autodetect-cpu-temp-zone` | Finding the CPU zone by `type`, with fallback to the battery zone |
 | `0017-enable-leds-vibrator-trigger` | Driving the vibrator with `brightness` only and resetting the trigger |
 | `0018-bootloader-message-misc-fallback` | BCB read/write fallback to `/dev/block/by-name/misc` |
+| `0019-do-not-preselect-data` | Backup no longer preselects `/data` on dynamic-partition devices |
 
 ---
 
 ## 12) Changes
+
+### Unreleased (next build)
+
+Fixes for the four issues reported by Doorriiaann (GitHub issues #2–#5):
+
+- **#2 — `init.recovery.samsung.rc` was never imported.** TWRP's `init.rc`
+  imports only `/init.recovery.${ro.hardware}.rc`, so the file that creates
+  `/efs` and `/sec_efs` was dead code. `init.recovery.mt6768.rc` now imports
+  it explicitly (`import /init.recovery.samsung.rc`).
+- **#3 — fastbootd does see the logical partitions.** Section 8.5 corrected:
+  `fastboot getvar all` lists all eight `super` partitions
+  (`is-logical:…:yes`); only *flashing* them is limited by the read-only
+  `super` metadata.
+- **#4 — the build fingerprint/description were hard-coded to A145PXXSDDZH1.**
+  TWRP now reads the real `ro.build.fingerprint`, `ro.build.description` and
+  `ro.build.version.*` from the installed system
+  (`TW_OVERRIDE_SYSTEM_PROPS` in `BoardConfig.mk`); the values in
+  `twrp_a14m.mk` are kept only as a fallback for when `/system` cannot be read.
+- **#5 — Backup preselected `/data`, and its failure deleted the images already
+  written.** New patch 0019 stops TWRP from preselecting `/data` on
+  dynamic-partition devices (`tw_backup_list` now defaults to empty); `/data`
+  keeps `backup=1` in the fstab, so it can still be backed up on unencrypted
+  firmware.
 
 ### Build 23 — `dabe5f4`
 

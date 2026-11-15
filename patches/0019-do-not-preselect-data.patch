@@ -1,0 +1,18 @@
+diff --git a/data.cpp b/data.cpp
+--- a/data.cpp
++++ b/data.cpp
+@@ -740,7 +740,13 @@ void DataManager::SetDefaultValues()
+ 	mPersist.SetValue("tw_backup_list", "/system;/data;");
+ #else
+ #ifdef PRODUCT_USE_DYNAMIC_PARTITIONS
+-	mPersist.SetValue("tw_backup_list", "/data;");
++	// TWRP preselects /data here.  On the a14m /data cannot be mounted until
++	// it has been decrypted, so a backup started with /data still ticked
++	// fails and TWRP deletes the images it already wrote ("Backup Failed.
++	// Cleaning Backup Folder.").  Leave the list empty instead: the user
++	// picks the partitions.  /data keeps backup=1 in the fstab, so it can
++	// still be backed up on unencrypted firmware.
++	mPersist.SetValue("tw_backup_list", "");
+ #else
+ 	mPersist.SetValue("tw_backup_list", "/system;/data;/boot;");
+ #endif

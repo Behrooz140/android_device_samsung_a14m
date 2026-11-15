@@ -190,6 +190,19 @@ TW_EXCLUDE_TWRPAPP := true
 TW_EXCLUDE_APEX := true
 RECOVERY_SDCARD_ON_DATA := true
 
+# Build identity (issue #4): the values compiled into the recovery ramdisk from
+# twrp_a14m.mk are a snapshot of A145PXXSDDZH1, so they are wrong on other
+# variants (SM-A145R) and on any A145P after its next firmware update.  Read the
+# real ones from the installed system at startup instead; if /system_root cannot
+# be mounted the compiled-in values in twrp_a14m.mk stay in effect.  Needs
+# TW_INCLUDE_LIBRESETPROP (set above); TWRP sets it automatically anyway.
+TW_OVERRIDE_SYSTEM_PROPS := \
+    "ro.build.fingerprint=ro.system.build.fingerprint;\
+    ro.build.description;\
+    ro.build.version.incremental;\
+    ro.build.version.release;\
+    ro.build.version.security_patch"
+
 # ----------------------------------------------------------------------------
 # Crypto (FBE + metadata encryption)
 # ----------------------------------------------------------------------------

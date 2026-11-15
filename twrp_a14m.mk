@@ -24,6 +24,11 @@ PRODUCT_MANUFACTURER := samsung
 
 PRODUCT_GMS_CLIENTID_BASE := android-samsung
 
+# Fallback build identity only.  At boot TWRP replaces
+# ro.build.fingerprint, ro.build.description and ro.build.version.* with the
+# real values read from the installed system (TW_OVERRIDE_SYSTEM_PROPS in
+# BoardConfig.mk, issue #4), so these do not have to match the installed
+# firmware; they are what the ramdisk reports when the system cannot be read.
 PRODUCT_BUILD_PROP_OVERRIDES += \
     PRIVATE_BUILD_DESC="a14mnnxx-user 15 AP3A.240905.015.A2 A145PXXSDDZH1 release-keys"
 
