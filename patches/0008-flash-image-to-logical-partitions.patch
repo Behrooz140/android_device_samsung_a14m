@@ -115,10 +115,10 @@ index 4cf1a23..433fc6e 100755
  
  bool TWPartition::Flash_Image_FI(const string& Filename, ProgressTracking *progress) {
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
-index 14a1f43..2864f4d 100755
+index 14a1f43..fcc3328 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
-@@ -3595,6 +3595,108 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
+@@ -3595,6 +3595,105 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
      return true;
  }
  
@@ -126,7 +126,7 @@ index 14a1f43..2864f4d 100755
 +// pointer is written to super first (the size changed); either way the new
 +// mapping is created writable, because liblp otherwise applies the read-only
 +// attribute Samsung puts on every logical partition and mkfs/dd would fail.
-+static bool remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
++static bool TWPartitionManager::remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
 +		const std::string& bare_partition_name, const std::string& partition_name,
 +		uint32_t slot, const android::fs_mgr::LpMetadata* metadata) {
 +	// only replace a link this recovery made, never a by-name entry for a physical partition
@@ -161,13 +161,10 @@ index 14a1f43..2864f4d 100755
 +		// the old dm node may be handed to another device
 +		if (own_link)
 +			unlink(link.c_str());
-+		// Set_Block_Device() is protected and this helper is not a member
-+		twrpPart->Primary_Block_Device.clear();
-+		twrpPart->Actual_Block_Device.clear();
++		twrpPart->Set_Block_Device("");
 +		return false;
 +	}
-+	twrpPart->Primary_Block_Device = path;
-+	twrpPart->Actual_Block_Device = path;
++	twrpPart->Set_Block_Device(path);
 +	if (own_link) {
 +		unlink(link.c_str());
 +		if (symlink(path.c_str(), link.c_str()) != 0)
@@ -228,10 +225,25 @@ index 14a1f43..2864f4d 100755
  	bool status = true;
  	std::vector<TWPartition*>::iterator iter;
 diff --git a/partitions.hpp b/partitions.hpp
-index 843dfe5..b3cfc18 100755
+index 843dfe5..5c4cd76 100755
 --- a/partitions.hpp
 +++ b/partitions.hpp
-@@ -204,6 +204,7 @@ private:
+@@ -31,6 +31,14 @@
+ #endif
+ #include "twrpApex.hpp"
+ 
++// liblp metadata type; partitionmanager.cpp includes <liblp/liblp.h> for the
++// full definition, this only lets the private helper be declared here
++namespace android {
++namespace fs_mgr {
++struct LpMetadata;
++}
++}
++
+ #define MAX_FSTAB_LINE_LENGTH 2048
+ 
+ #define REPACK_ORIG_DIR "/tmp/repackorig/"
+@@ -204,6 +212,7 @@ private:
  	unsigned long long Get_Size_Via_du(string Path, bool Display_Error);      // Uses du to get sizes
  	bool Wipe_EXTFS(string File_System);                                      // Create an ext2/ext3/ext4 filesystem
  	bool Wipe_EXT4();                                                         // Formats using ext4, uses make_ext4fs when present
@@ -239,7 +251,7 @@ index 843dfe5..b3cfc18 100755
  	bool Wipe_FAT();                                                          // Formats as FAT if mkfs.fat exits otherwise rm -rf wipe
  	bool Wipe_EXFAT();                                                        // Formats as EXFAT
  	bool Wipe_MTD();                                                          // Formats as yaffs2 for MTD memory types
-@@ -399,6 +400,8 @@ public:
+@@ -399,6 +408,8 @@ public:
  	void Add_Partition(TWPartition* Part);                                    // Adds a new partition to the Partitions vector
  	std::string Get_Bare_Partition_Name(std::string Mount_Point);
      bool Prepare_Super_Volume(TWPartition* twrpPart);					  	  // Prepare logical super partition volume for mounting
@@ -248,3 +260,13 @@ index 843dfe5..b3cfc18 100755
  	std::string Get_Super_Partition();										  // Get Super Partition block device path
  	void Setup_Super_Devices();												  // Setup logical dm devices on super partition
  	bool Get_Super_Status();												  // Return whether device has a super partition
+@@ -412,6 +423,9 @@ public:
+ 	bool Check_Pending_Merges();                                              // Check and run pending merges on data for VAB devices
+ 
+ private:
++	static bool remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
++			const std::string& bare_partition_name, const std::string& partition_name,
++			uint32_t slot, const android::fs_mgr::LpMetadata* metadata);      // Remap a logical partition writable, optionally with new metadata
+ 	void Setup_Settings_Storage_Partition(TWPartition* Part);                 // Sets up settings storage
+ 	void Setup_Android_Secure_Location(TWPartition* Part);                    // Sets up .android_secure if needed
+ 	bool Backup_Partition(struct PartitionSettings *part_settings);           // Backup the partitions based on type
