@@ -1,86 +1,88 @@
+> 🌐 **English** · [فارسی](README.fa.md)
+
 # TWRP Device Tree — Samsung Galaxy A14 4G (SM-A145P / `a14m`)
 
-درخت دستگاه (device tree) اختصاصی برای ساخت **TWRP 12.1** روی
-**Samsung Galaxy A14 4G — SM-A145P**، بر پایهٔ فایل ریکاوری استوک خودِ گوشی.
+A dedicated device tree for building **TWRP 12.1** for the
+**Samsung Galaxy A14 4G — SM-A145P**, based on the phone's own stock recovery file.
 
-> **وضعیت: بیلد ۲۳ روی گوشی تست شده و کار می‌کند.**
-> بوت، نمایشگر، تاچ، ذخیره‌سازی، پارتیشن‌های منطقی `super`،
-> `Install Image` روی پارتیشن‌های منطقی، دیده‌شدن آن‌ها در
-> **Advanced Wipe** و **Reboot → Recovery** همگی درست کار می‌کنند.
+> **Status: build 23 has been tested on the phone and works.**
+> Boot, display, touch, storage, the `super` logical partitions,
+> `Install Image` to logical partitions, their visibility in
+> **Advanced Wipe**, and **Reboot → Recovery** all work correctly.
 >
-> تنها محدودیت باقی‌مانده **رمزگشایی `/data`** است که از پارتیشن
-> `recovery` عملاً غیرممکن است (بخش ۹). این محدودیت ناشی از رفتار
-> بوت‌لودر است، نه اشکال درخت.
+> The only remaining limitation is **`/data` decryption**, which is practically
+> impossible from the `recovery` partition (section 9). This limitation stems from
+> the bootloader's behavior, not from a bug in the tree.
 
-ریپازیتوری: `https://github.com/Behrooz140/android_device_samsung_a14m`
+Repository: `https://github.com/Behrooz140/android_device_samsung_a14m`
 
 ---
 
-## ۱) وضعیت امکانات
+## 1) Feature status
 
-| امکان | وضعیت | توضیح |
+| Feature | Status | Notes |
 |---|---|---|
-| بوت TWRP از پارتیشن `recovery` | ✅ | هدر بوت دقیقاً مطابق استوک |
-| نمایشگر و روشنایی | ✅ | `TW_BRIGHTNESS_PATH` روی backlight واقعی |
-| تاچ (Himax HX83112) | ✅ | فریمور تاچ داخل رم‌دیسک قرار دارد |
-| خواندن/نوشتن MicroSD | ✅ | `/external_sd` (exFAT/vfat) |
-| حافظهٔ داخلی `/sdcard` | ⚠️ | فقط وقتی `/data` مانت شود |
-| پارتیشن‌های منطقی `super` | ✅ | مانت فقط‌خواندنی + `flashimg=1` |
-| `Install Image` روی `system`/`vendor`/… | ✅ | پچ ۰۰۰۸ |
-| دیده‌شدن پارتیشن‌های منطقی در Advanced Wipe | ✅ | پچ ۰۰۱۲ + `wipeingui` |
-| پاک‌کردن فایل‌سیستم روی `super` | ⚠️ | متادیتای `super` سامسونگ فقط‌خواندنی است |
-| Backup پارتیشن‌های منطقی | ❌ (عمدی) | TWRP برای `super` بکاپ را می‌بندد؛ از ایمیج استوک استفاده کنید |
-| `Reboot → Recovery` | ✅ | پچ ۰۰۱۳ + نوشتن مستقیم BCB |
-| `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴ + ۰۰۱۸: نوشتن BCB `--fastboot` و ریستارت به ریکاوری |
-| دمای نمایش‌داده‌شده | ⚠️ | پچ ۰۰۱۶؛ کرنل ریکاوری زون CPU ندارد، دمای باتری نمایش داده می‌شود |
-| ویبره (هپتیک) | ✅ | پچ ۰۰۱۷: درایو مستقیم `brightness` و ریست تریگر |
-| پاک‌کردن Dalvik / ART Cache | ⚠️ | پچ ۰۰۱۵؛ `/cache` پاک می‌شود، `dalvik-cache` داخل `/data` رمزنگاری‌شده در دسترس نیست |
+| Booting TWRP from the `recovery` partition | ✅ | Boot header exactly matches stock |
+| Display and brightness | ✅ | `TW_BRIGHTNESS_PATH` points to the real backlight |
+| Touch (Himax HX83112) | ✅ | The touch firmware is included in the ramdisk |
+| MicroSD read/write | ✅ | `/external_sd` (exFAT/vfat) |
+| Internal storage `/sdcard` | ⚠️ | Only when `/data` is mounted |
+| `super` logical partitions | ✅ | Read-only mount + `flashimg=1` |
+| `Install Image` to `system`/`vendor`/… | ✅ | Patch 0008 |
+| Logical partitions visible in Advanced Wipe | ✅ | Patch 0012 + `wipeingui` |
+| Wiping the filesystem on `super` | ⚠️ | Samsung's `super` metadata is read-only |
+| Backup of logical partitions | ❌ (intentional) | TWRP disables backup for `super`; use the stock image |
+| `Reboot → Recovery` | ✅ | Patch 0013 + writing the BCB directly |
+| `Reboot → Fastboot` | ✅ | Patches 0014 + 0018: writing a `--fastboot` BCB and restarting into recovery |
+| Displayed temperature | ⚠️ | Patch 0016; the recovery kernel has no CPU zone, so the battery temperature is shown |
+| Vibration (haptics) | ✅ | Patch 0017: driving `brightness` directly and resetting the trigger |
+| Wiping Dalvik / ART Cache | ⚠️ | Patch 0015; `/cache` is wiped, `dalvik-cache` inside the encrypted `/data` is not accessible |
 | `Reboot → System` | ✅ | |
 | fastbootd / repacktools / lptools | ✅ | |
-| رمزگشایی `/data` | ❌ | بوت‌لودر در حالت ریکاوری TEE را بالا نمی‌آورد |
-| APEX | حذف‌شده | `TW_EXCLUDE_APEX := true` |
+| `/data` decryption | ❌ | The bootloader does not bring up the TEE in recovery mode |
+| APEX | Removed | `TW_EXCLUDE_APEX := true` |
 
-موارد `Reboot → Fastboot`، ویبره و دمای باتری در بیلد ۲۳ روی گوشی تست
-شدند و با لاگ‌های MicroSD تأیید شدند (بخش ۱۲).
+`Reboot → Fastboot`, vibration and the battery temperature were tested on the
+phone in build 23 and confirmed with the MicroSD logs (section 12).
 
 ---
 
-## ۲) مشخصات دستگاه
+## 2) Device specifications
 
-| مورد | مقدار |
+| Item | Value |
 |---|---|
-| مدل | Samsung Galaxy A14 4G |
-| کد دستگاه | `SM-A145P` |
-| کدنام | `a14m` (نام محصول سامسونگ: `a14mnnxx`) |
-| چیپست | MediaTek **MT6768** (Helio G80/G85) |
-| معماری | arm64-v8a + armeabi-v7a (`cortex-a55`) |
-| اندروید | ۱۵ / One UI 7 |
-| بیلد استوک | `A145PXXSDDZH1` / `AP3A.240905.015.A2` |
-| پچ امنیتی | `2026-07-05` |
-| فرگمنت | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXSDDZH1:user/release-keys` |
-| پارتیشن ریکاوری | `80,740,352` بایت (p40) |
-| پارتیشن `super` | `9,126,805,504` بایت (p46) |
+| Model | Samsung Galaxy A14 4G |
+| Device code | `SM-A145P` |
+| Codename | `a14m` (Samsung product name: `a14mnnxx`) |
+| Chipset | MediaTek **MT6768** (Helio G80/G85) |
+| Architecture | arm64-v8a + armeabi-v7a (`cortex-a55`) |
+| Android | 15 / One UI 7 |
+| Stock build | `A145PXXSDDZH1` / `AP3A.240905.015.A2` |
+| Security patch | `2026-07-05` |
+| Fingerprint | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXSDDZH1:user/release-keys` |
+| Recovery partition | `80,740,352` bytes (p40) |
+| `super` partition | `9,126,805,504` bytes (p46) |
 
-نمایشگر: پنل‌های `BOE / TXD / INX / JDI` با درایورهای `hx83112f`, `jd9522t`,
-`nl9922c`, `td4375`.
-تاچ: `himax HX83112`، `jadard JD9522T`، `chipone` و `focaltech`.
+Display: `BOE / TXD / INX / JDI` panels with the `hx83112f`, `jd9522t`,
+`nl9922c`, `td4375` drivers.
+Touch: `himax HX83112`, `jadard JD9522T`, `chipone` and `focaltech`.
 
 ---
 
-## ۳) منبع prebuiltها و هدر بوت
+## 3) Source of the prebuilts and the boot header
 
-همهٔ فایل‌های زیر **از `recovery.img` استوک خودِ گوشی** استخراج شده‌اند
-(نه از اینترنت و نه از دستگاه مشابه). بنابراین کرنل، DTB/DTBO و ماژول‌ها
-دقیقاً با سخت‌افزار همین بیلد هم‌خوان هستند.
+All of the files below were extracted **from the phone's own stock `recovery.img`**
+(not from the internet, nor from a similar device). The kernel, DTB/DTBO and modules
+therefore match the hardware of this exact build.
 
-| فایل | اندازه | MD5 | توضیح |
+| File | Size | MD5 | Notes |
 |---|---:|---|---|
-| `prebuilt/kernel` | 13,975,532 | `933b3c79216a10cd47b5c93ce16e10e9` | `Image.gz` استوک (gzip) |
-| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | DTB پایهٔ MT6768 |
-| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO برد `A14M MEA OPEN 00` |
-| `prebuilt/modules/` | 25 MB | — | ۱۹۸ فایل `.ko` + `modules.alias`, `modules.dep`, `modules.softdep`, `modules.load.recovery` |
+| `prebuilt/kernel` | 13,975,532 | `933b3c79216a10cd47b5c93ce16e10e9` | Stock `Image.gz` (gzip) |
+| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | MT6768 base DTB |
+| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO for the `A14M MEA OPEN 00` board |
+| `prebuilt/modules/` | 25 MB | — | 198 `.ko` files + `modules.alias`, `modules.dep`, `modules.softdep`, `modules.load.recovery` |
 
-هدر بوت خروجی باید **بایت‌به‌بایت** با استوک یکی باشد:
+The output boot header must be identical to stock **byte for byte**:
 
 ```
 header version : 2
@@ -95,119 +97,119 @@ os version     : 15.0.0 / 2026-07
 ramdisk format : LZ4 (legacy frame)
 ```
 
-این مقادیر در `BoardConfig.mk` صریحاً تنظیم شده‌اند
+These values are set explicitly in `BoardConfig.mk`
 (`--board SRPVJ12A013`, `--dtb_offset 0x0bc08000`,
 `--os_version 15.0.0 --os_patch_level 2026-07`, `BOARD_RAMDISK_USE_LZ4`).
-تغییر هرکدام باعث می‌شود بوت‌لودر تصویر را رد کند یا کرنل ramdisk را
-پیدا نکند.
+Changing any of them causes the bootloader to reject the image or the kernel
+to fail to find the ramdisk.
 
-> ماژول‌ها **باید** با `prebuilt/kernel` هم‌نسل باشند؛ اگر کرنل را عوض کنید
-> (مثلاً کرنل کاستوم)، این ماژول‌ها دیگر لود نمی‌شوند و نمایشگر، تاچ،
-> ذخیره‌سازی و USB از کار می‌افتند.
+> The modules **must** be of the same generation as `prebuilt/kernel`; if you change
+> the kernel (e.g. to a custom kernel), these modules will no longer load, and display,
+> touch, storage and USB will stop working.
 
 ---
 
-## ۴) ساختار درخت
+## 4) Tree structure
 
 ```
 device/samsung/a14m/
-├── .github/workflows/build-twrp.yml ← ورک‌فلو ساخت روی GitHub Actions
+├── .github/workflows/build-twrp.yml ← build workflow for GitHub Actions
 ├── .gitignore
 ├── Android.bp / Android.mk / AndroidProducts.mk
-├── BoardConfig.mk              ← کرنل، پارتیشن‌ها، AVB و فلگ‌های TWRP
-├── device.mk                   ← کپی فایل‌های رم‌دیسک و ماژول‌ها
-├── twrp_a14m.mk                ← محصول twrp_a14m
+├── BoardConfig.mk              ← kernel, partitions, AVB and TWRP flags
+├── device.mk                   ← copies ramdisk files and modules
+├── twrp_a14m.mk                ← twrp_a14m product
 ├── vendorsetup.sh
-├── recovery.fstab              ← fstab مخصوص TWRP (فرمت v2)
+├── recovery.fstab              ← TWRP-specific fstab (v2 format)
 ├── prebuilt/
-│   ├── kernel                  ← Image.gz استوک
-│   ├── dtb.img                 ← DTB پایهٔ استوک
-│   ├── dtbo.img                ← DTBO استوک
-│   └── modules/                ← ۱۹۸ ماژول کرنل استوک + وابستگی‌ها
-├── decrypt/                    ← بخش نرم‌افزاری رمزگشایی /data
-│   ├── Android.bp              ← تعریف langsdorff_decrypt و gk_verify
-│   ├── langsdorff_decrypt.cpp  ← بازکردن FBE v2 + متادیتا با KeyMint
-│   └── gk_verify.cpp           ← تأیید رمز با gatekeeper هیدل ۱.۰
-├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۸)
+│   ├── kernel                  ← stock Image.gz
+│   ├── dtb.img                 ← stock base DTB
+│   ├── dtbo.img                ← stock DTBO
+│   └── modules/                ← 198 stock kernel modules + dependencies
+├── decrypt/                    ← software part of /data decryption
+│   ├── Android.bp              ← defines langsdorff_decrypt and gk_verify
+│   ├── langsdorff_decrypt.cpp  ← unlocks FBE v2 + metadata with KeyMint
+│   └── gk_verify.cpp           ← password verification with gatekeeper HIDL 1.0
+├── patches/                    ← TWRP source patches (0001 to 0018)
 ├── recovery/root/
-│   ├── init.recovery.mt6768.rc ← USB، TEE، سرویس decrypt، diag
-│   ├── init.recovery.samsung.rc← آماده‌سازی efs
-│   ├── sbin/twrp-diag.sh       ← جمع‌آوری لاگ تشخیصی
-│   ├── system/bin/             ← decrypt.sh، data_release.sh،
-│   │                             fstab_crypto.sh، rebootrecovery.sh، …
-│   ├── system/etc/init/        ← فایل‌های rc استوک (dsms, snapuserd, …)
-│   ├── system/etc/twrp.flags   ← ورودی‌های اختیاری (USB-OTG)
-│   └── system/tee/             ← پشتهٔ TEE سامسونگ برای تلاش رمزگشایی
+│   ├── init.recovery.mt6768.rc ← USB, TEE, decrypt service, diag
+│   ├── init.recovery.samsung.rc← efs preparation
+│   ├── sbin/twrp-diag.sh       ← diagnostic log collection
+│   ├── system/bin/             ← decrypt.sh, data_release.sh,
+│   │                             fstab_crypto.sh, rebootrecovery.sh, …
+│   ├── system/etc/init/        ← stock rc files (dsms, snapuserd, …)
+│   ├── system/etc/twrp.flags   ← optional entries (USB-OTG)
+│   └── system/tee/             ← Samsung TEE stack for the decryption attempt
 └── tools/
-    ├── extract_from_recovery.sh← استخراج مجدد prebuiltها
-    └── stock_recovery.fstab    ← fstab استوک برای مقایسه
+    ├── extract_from_recovery.sh← re-extracts the prebuilts
+    └── stock_recovery.fstab    ← stock fstab for comparison
 ```
 
-فایل‌های `recovery/root/...` با `PRODUCT_COPY_FILES` به
-`out/target/product/a14m/recovery/root/...` کپی می‌شوند و داخل رم‌دیسک
-قرار می‌گیرند. ماژول‌ها در `recovery/root/lib/modules/` می‌نشینند؛ همان
-مسیری که init در حالت ریکاوری برای `modules.load.recovery` جست‌وجو می‌کند.
+The `recovery/root/...` files are copied via `PRODUCT_COPY_FILES` to
+`out/target/product/a14m/recovery/root/...` and end up inside the ramdisk.
+The modules sit in `recovery/root/lib/modules/`, which is the same path
+init searches for `modules.load.recovery` in recovery mode.
 
-پچ‌ها عمداً داخل خود ریپازیتوری هستند؛ ورک‌فلو پیش از ساخت آن‌ها را روی
-سورس TWRP اعمال می‌کند و لازم نیست نسخهٔ دستی‌کاری‌شدهٔ TWRP نگه‌داری شود.
+The patches are intentionally kept inside the repository itself; the workflow applies them to
+the TWRP source before building, so there is no need to maintain a hand-modified copy of TWRP.
 
 ---
 
-## ۵) ساخت با GitHub Actions (روش اصلی)
+## 5) Building with GitHub Actions (main method)
 
-ورک‌فلو آماده در `.github/workflows/build-twrp.yml` قرار دارد و همان روشی
-است که همهٔ بیلدهای تست‌شده با آن ساخته شده‌اند.
+A ready-made workflow is located in `.github/workflows/build-twrp.yml`, and it is
+the same method that all of the tested builds were built with.
 
-مراحل:
+Steps:
 
-1. ریپازیتوری را باز کنید → تب **Actions** → workflow
-   **Build TWRP (a14m)**.
-2. **Run workflow** را بزنید و ورودی‌ها را انتخاب کنید:
-   - `variant`: `eng` (پیش‌فرض) یا `userdebug`
-   - `target`: `recoveryimage` (برای این گوشی) یا `bootimage`
-3. پس از پایان (تقریباً ۱ تا ۲ ساعت، سقف ۳۵۰ دقیقه) از بخش
-   **Artifacts** این فایل‌ها را دانلود کنید:
-   - `recovery.img` — تصویر خام
-   - `twrp_a14m.tar.md5` — بستهٔ آمادهٔ Odin (اسلات AP)
-   - `MD5SUMS.txt` و `SHA256SUMS.txt`
+1. Open the repository → **Actions** tab → the
+   **Build TWRP (a14m)** workflow.
+2. Click **Run workflow** and choose the inputs:
+   - `variant`: `eng` (default) or `userdebug`
+   - `target`: `recoveryimage` (for this phone) or `bootimage`
+3. When it finishes (roughly 1 to 2 hours, 350-minute cap), download these
+   files from the **Artifacts** section:
+   - `recovery.img` — the raw image
+   - `twrp_a14m.tar.md5` — ready-made Odin package (AP slot)
+   - `MD5SUMS.txt` and `SHA256SUMS.txt`
 
-نام Artifact به شکل `twrp-a14m-<شمارهٔ اجرا>` است؛ شمارهٔ اجرای بیلد
-تست‌شده **۲۰** است.
+The Artifact is named `twrp-a14m-<run number>`; the run number of the tested
+build is **20**.
 
-آنچه ورک‌فلو انجام می‌دهد:
+What the workflow does:
 
-- آماده‌سازی وابستگی‌های AOSP، `repo` و فضای دیسک
-- `repo init/sync` روی منیفست
-  `minimal-manifest-twrp/platform_manifest_twrp_aosp` شاخهٔ `twrp-12.1`
-  (نسخهٔ `--depth=1`)
-- کپی درخت دستگاه به `device/samsung/a14m`
-- اعمال **همهٔ** `patches/*.patch` روی `bootable/recovery`:
+- Prepares the AOSP dependencies, `repo` and disk space
+- `repo init/sync` of the manifest
+  `minimal-manifest-twrp/platform_manifest_twrp_aosp`, branch `twrp-12.1`
+  (`--depth=1` version)
+- Copies the device tree to `device/samsung/a14m`
+- Applies **all** `patches/*.patch` to `bootable/recovery`:
 
   ```bash
   patch -p1 --forward --fuzz=3 -d bootable/recovery < patches/0001-....patch
   ```
 
-- ساخت با `lunch twrp_a14m-eng` و `mka recoveryimage`
-- ساخت پکیج Odin (tar + MD5) و آپلود Artifact
+- Builds with `lunch twrp_a14m-eng` and `mka recoveryimage`
+- Builds the Odin package (tar + MD5) and uploads the Artifact
 
-نکات:
+Notes:
 
-- کش `ccache` عمداً استفاده نمی‌شود؛ در رانر GitHub روی
-  `~/.ccache/tmp` خطای `Read-only file system` می‌داد.
-- اگر تگ `v*` پوش کنید، علاوه بر Artifact یک **GitHub Release** هم ساخته
-  می‌شود:
+- `ccache` is intentionally not used; on the GitHub runner it produced
+  a `Read-only file system` error on `~/.ccache/tmp`.
+- If you push a `v*` tag, a **GitHub Release** is created as well, in addition
+  to the Artifact:
   ```bash
   git tag v1.0.0 && git push origin v1.0.0
   ```
-- در صورت شکست بیلد، Artifactی به نام `build-logs-<run>` شامل
-  `verbose.log.gz` و `error.log` آپلود می‌شود.
-- اجرای خودکار روی هر push به‌صورت پیش‌فرض خاموش است (هر اجرا از سهمیهٔ
-  Actions کم می‌کند)؛ برای فعال‌کردن، بلوک `push.branches` را در فایل
-  workflow از کامنت خارج کنید.
+- If the build fails, an Artifact named `build-logs-<run>` containing
+  `verbose.log.gz` and `error.log` is uploaded.
+- Automatic runs on every push are disabled by default (each run uses up the
+  Actions quota); to enable them, uncomment the `push.branches` block in the
+  workflow file.
 
 ---
 
-## ۶) ساخت محلی (اختیاری)
+## 6) Local build (optional)
 
 ```bash
 mkdir -p ~/twrp && cd ~/twrp
@@ -219,7 +221,7 @@ repo sync -j"$(nproc)" --force-sync --no-clone-bundle --no-tags
 
 ln -s /root/device/samsung/a14m device/samsung/a14m
 
-# پچ‌ها را دستی اعمال کنید (ورک‌فلو این کار را خودکار انجام می‌دهد)
+# Apply the patches manually (the workflow does this automatically)
 shopt -s nullglob
 for p in device/samsung/a14m/patches/*.patch; do
   echo "--- $p"
@@ -231,57 +233,57 @@ lunch twrp_a14m-eng
 mka recoveryimage -j"$(nproc)"
 ```
 
-خروجی: `out/target/product/a14m/recovery.img`
+Output: `out/target/product/a14m/recovery.img`
 
-پیش‌نیازها: لینوکس ۶۴ بیتی، حدود ۱۰۰ گیگ فضای آزاد، ۸ تا ۱۶ گیگ رم،
-و `git`, `repo`, `python3`, `lz4`, `cpio`, `openjdk-11`.
+Requirements: 64-bit Linux, about 100 GB of free space, 8 to 16 GB of RAM,
+and `git`, `repo`, `python3`, `lz4`, `cpio`, `openjdk-11`.
 
 ---
 
-## ۷) نصب روی گوشی
+## 7) Installing on the phone
 
-### ۷.۱ آماده‌سازی
+### 7.1 Preparation
 
-1. حساب سامسونگ و قفل صفحه را بردارید.
-2. `OEM unlocking` را در Developer options فعال کنید.
-3. گوشی را به اینترنت وصل کنید تا **KG State = Checking** و
-   **RMM State = Normal** شود؛ در غیر این صورت Odin فلش را بلاک می‌کند
-   و ممکن است ۷ روز انتظار لازم باشد.
-4. با `Volume Down + Volume Up` + کابل USB وارد **Download Mode** شوید و
-   قفل بوت‌لودر را باز کنید (همهٔ داده‌ها پاک می‌شود).
-5. یک بار وارد سیستم شوید و Developer options را دوباره بررسی کنید.
+1. Remove the Samsung account and the screen lock.
+2. Enable `OEM unlocking` in Developer options.
+3. Connect the phone to the internet so that **KG State = Checking** and
+   **RMM State = Normal**; otherwise Odin will block the flash
+   and a 7-day wait may be required.
+4. Enter **Download Mode** with `Volume Down + Volume Up` + USB cable and
+   unlock the bootloader (all data will be wiped).
+5. Boot into the system once and check Developer options again.
 
-### ۷.۲ غیرفعال کردن AVB — اجباری
+### 7.2 Disabling AVB — mandatory
 
-`recovery.img` استوک با کلید سامسونگ امضا شده و `vbmeta` گوشی هشِ همان
-تصویر را نگه می‌دارد. تصویری که این درخت می‌سازد با **کلید تست AOSP**
-امضا می‌شود؛ تا وقتی `vbmeta` استوک روی گوشی است، بوت‌لودر تصویر را رد
-می‌کند و نتیجه لوگوی سامسونگ و ریبوت است.
+The stock `recovery.img` is signed with Samsung's key, and the phone's `vbmeta` holds the hash of that
+same image. The image this tree builds is signed with the **AOSP test key**;
+as long as the stock `vbmeta` is on the phone, the bootloader rejects the image,
+and the result is the Samsung logo and a reboot.
 
-روش مطمئن برای سامسونگ (بدون نیاز به fastboot):
+A reliable method for Samsung (no fastboot required):
 
-1. فریمور کامل و **دقیقاً همان بیلد** گوشی را دانلود کنید
-   (`AP_...tar.md5` از SamFW / SamMobile).
-2. اپ **Magisk** را روی گوشی نصب کنید.
-3. در Magisk: `Install` → `Select and Patch a File` → فایل
-   `AP_....tar.md5` را انتخاب کنید تا `boot.img` و `vbmeta.img` پچ شوند.
-4. فایل خروجی `magisk_patched-....tar` را با Odin در اسلات **AP** فلش
-   کنید و `Auto Reboot` را بردارید.
-5. بعد از `PASS`، بلافاصله با `Volume Up + Power` وارد ریکاوری شوید.
+1. Download the full firmware for **exactly the same build** as the phone
+   (`AP_...tar.md5` from SamFW / SamMobile).
+2. Install the **Magisk** app on the phone.
+3. In Magisk: `Install` → `Select and Patch a File` → select the
+   `AP_....tar.md5` file so that `boot.img` and `vbmeta.img` get patched.
+4. Flash the output file `magisk_patched-....tar` with Odin in the **AP** slot
+   and uncheck `Auto Reboot`.
+5. After `PASS`, immediately boot into recovery with `Volume Up + Power`.
 
-اگر روت نمی‌خواهید: از همان خروجی فقط `vbmeta.img` را بیرون بکشید و
-تنها همان را در یک tar فلش کنید.
+If you don't want root: extract only `vbmeta.img` from that same output and
+flash just that file in a tar.
 
-### ۷.۳ فلش ریکاوری
+### 7.3 Flashing the recovery
 
-فایل `twrp_a14m.tar.md5` که Artifact تولید می‌کند مستقیماً آمادهٔ Odin است:
+The `twrp_a14m.tar.md5` file that the Artifact produces is ready for Odin as is:
 
 ```
-Odin → Options: Auto Reboot را بردارید
+Odin → Options: uncheck Auto Reboot
 Odin → AP: twrp_a14m.tar.md5 → Start
 ```
 
-اگر خودتان می‌خواهید بسازید:
+If you want to build it yourself:
 
 ```bash
 tar -cf twrp_a14m.tar recovery.img
@@ -289,249 +291,249 @@ md5sum twrp_a14m.tar >> twrp_a14m.tar
 mv twrp_a14m.tar twrp_a14m.tar.md5
 ```
 
-> بعد از فلش، **بلافاصله** با `Volume Up + Power` (کابل جدا) وارد
-> ریکاوری شوید تا سیستم استوک فرصت بازنویسی ریکاوری را پیدا نکند.
-> در اولین ورود `Swipe to Allow Modifications` را بزنید.
+> After flashing, boot into recovery **immediately** with `Volume Up + Power` (cable
+> unplugged) so that the stock system doesn't get a chance to overwrite the recovery.
+> On first entry, do `Swipe to Allow Modifications`.
 
-### ۷.۴ به‌روزرسانی TWRP
+### 7.4 Updating TWRP
 
-برای نصب نسخهٔ بعدی لازم نیست Odin را دوباره به کار ببرید؛ فایل
-`recovery.img` را روی MicroSD کپی کنید و داخل TWRP از
-**Install → Install Image → Recovery** استفاده کنید. سپس
-**Reboot → Recovery** را بزنید (بخش ۸.۴).
+To install a newer version you don't need to use Odin again; copy the
+`recovery.img` file to the MicroSD and, inside TWRP, use
+**Install → Install Image → Recovery**. Then tap
+**Reboot → Recovery** (section 8.4).
 
-### ۷.۵ بازگشت به استوک
+### 7.5 Returning to stock
 
-`recovery.img` استوک را از همان `AP_...tar.md5` بیرون بکشید (یا از بکاپ
-خود TWRP) و با Odin در اسلات AP فلش کنید. فلش `boot`/`lk`/`preloader`
-لازم نیست و توصیه نمی‌شود.
+Extract the stock `recovery.img` from that same `AP_...tar.md5` (or from TWRP's own
+backup) and flash it with Odin in the AP slot. Flashing `boot`/`lk`/`preloader`
+is not necessary and not recommended.
 
 ---
 
-## ۸) امکانات و رفتار پارتیشن‌ها
+## 8) Features and partition behavior
 
-### ۸.۱ پارتیشن‌های منطقی `super`
+### 8.1 `super` logical partitions
 
-هشت پارتیشن منطقی در `recovery.fstab` تعریف شده‌اند:
+Eight logical partitions are defined in `recovery.fstab`:
 
 `system`, `vendor`, `product`, `odm`, `system_ext`, `vendor_dlkm`,
 `system_dlkm`, `odm_dlkm`
 
-هر ورودی این فلگ‌ها را دارد:
+Each entry has these flags:
 
 ```
 flags=display=<name>;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
 ```
 
-- **`fsflags=ro` الزامی است.** سامسونگ این پارتیشن‌ها را در متادیتای
-  `super` با اتریبیوت فقط‌خواندنی (`liblp attr=0x1`) علامت زده است؛
-  دستگاه‌های `dm-*` فقط‌خواندنی‌اند و مانت بدون `MS_RDONLY` با
-  `EACCES (Permission denied)` شکست می‌خورد.
-- **`flashimg=1`** اجازه می‌دهد با `Install Image` یک ایمیج خام
-  (`system.img`, `vendor.img`, …) مستقیم روی همان پارتیشن منطقی نوشته
-  شود؛ پچ ۰۰۰۸ اندازهٔ ایمیج (ساده یا sparse) را بررسی و آن را روی
-  `dm` مربوطه می‌نویسد.
-- **`wipeingui`** باعث می‌شود پارتیشن در **Advanced Wipe** دیده شود.
-  TWRP هنگام پارس fstab هر پارتیشن `Is_Super` را «غیرقابل پاک‌کردن»
-  می‌کند و بعدتر فلگ‌ها را اعمال می‌کند؛ پچ ۰۰۱۲ این رفتار را فقط وقتی
-  تغییر می‌دهد که خود fstab صریحاً `wipeingui` خواسته باشد
-  (`Wipe_Available_in_GUI`). بکاپ برای این پارتیشن‌ها همچنان بسته است
-  (`Set_Can_Be_Backed_Up(false)`) و در منوی Backup ظاهر نمی‌شوند.
-- **پاک‌کردن فایل‌سیستم** روی `super` فقط وقتی موفق می‌شود که متادیتای
-  `super` قابل نوشتن باشد؛ در این گوشی نیست. برای بازگرداندن یک پارتیشن
-  از `Install Image` استفاده کنید، نه Wipe.
-- خود پارتیشن `/super` هم توسط TWRP به‌صورت یک ورودی جداگانه اضافه
-  می‌شود (پچ ۰۰۰۲ اندازهٔ آن را از روی بلوک‌دستگاه می‌خواند) و برای
-  dd/بکاپ خام در دسترس است.
+- **`fsflags=ro` is required.** Samsung has marked these partitions in the
+  `super` metadata with the read-only attribute (`liblp attr=0x1`);
+  the `dm-*` devices are read-only, and mounting without `MS_RDONLY` fails with
+  `EACCES (Permission denied)`.
+- **`flashimg=1`** allows a raw image (`system.img`, `vendor.img`, …) to be
+  written via `Install Image` directly to that same logical partition;
+  patch 0008 checks the image size (plain or sparse) and writes it to the
+  corresponding `dm`.
+- **`wipeingui`** makes the partition appear in **Advanced Wipe**.
+  While parsing the fstab, TWRP marks every `Is_Super` partition as "not wipeable"
+  and applies the flags later; patch 0012 changes this behavior only when
+  the fstab itself explicitly asks for `wipeingui`
+  (`Wipe_Available_in_GUI`). Backup remains disabled for these partitions
+  (`Set_Can_Be_Backed_Up(false)`) and they do not appear in the Backup menu.
+- **Wiping the filesystem** on `super` only succeeds when the `super`
+  metadata is writable; on this phone it is not. To restore a partition,
+  use `Install Image`, not Wipe.
+- The `/super` partition itself is also added by TWRP as a separate entry
+  (patch 0002 reads its size from the block device) and is available for
+  dd/raw backup.
 
-### ۸.۲ تصاویر بوت و ریکاوری
+### 8.2 Boot and recovery images
 
-`boot`, `recovery`, `init_boot`, `vendor_boot`, `dtbo` با `flashimg=1`
-و `backup=1` تعریف شده‌اند؛ می‌توانید بکاپ ایمیج بگیرید یا ایمیج جدید
-بنویسید. `misc` فقط برای نمایش/خواندن است و عمداً `backup` ندارد تا
-BCB ریکاوری اشتباهی بازگردانی نشود.
+`boot`, `recovery`, `init_boot`, `vendor_boot`, `dtbo` are defined with `flashimg=1`
+and `backup=1`; you can take image backups or write new
+images. `misc` is for display/reading only and intentionally has no `backup`, so that
+a recovery BCB doesn't get restored by mistake.
 
-### ۸.۳ Advanced Wipe و پارتیشن‌های حساس
+### 8.3 Advanced Wipe and sensitive partitions
 
-- قابل پاک‌کردن: `/data`, `/cache`, `/metadata`, `/external_sd` و
-  پارتیشن‌های منطقی (با محدودیت بخش ۸.۱).
-- **هرگز** روی `efs`, `persist`, `nvdata` گزینهٔ wipe فعال نشده است؛
-  این‌ها IMEI، کالیبراسیون رادیو و دادهٔ سنسورها را نگه می‌دارند و پس از
-  پاک‌شدن قابل بازیابی نیستند. این پارتیشن‌ها فقط برای بکاپ و مانت
-  فقط‌خواندنی (`fsflags=ro`) در fstab هستند.
-- `/prism`, `/optics`, `/md1img`, `/spmfw`, `/scp1`, `/sspm_1` فقط
-  برای نمایش/بکاپ تعریف شده‌اند.
-- `/efs` در زمان تلاش رمزگشایی به‌صورت موقت `remount,rw` می‌شود، چون
-  TEEGRIS و gatekeeper روی استوک هم روی همین پارتیشن‌ها می‌نویسند؛ این
-  کار فقط داخل `decrypt_stack.sh` انجام می‌شود و روی رفتار منوی Wipe
-  اثری ندارد.
+- Wipeable: `/data`, `/cache`, `/metadata`, `/external_sd` and the
+  logical partitions (with the limitation from section 8.1).
+- The wipe option is **never** enabled on `efs`, `persist`, `nvdata`;
+  these hold the IMEI, radio calibration and sensor data and cannot be
+  recovered once wiped. These partitions are in the fstab only for backup and
+  read-only mounting (`fsflags=ro`).
+- `/prism`, `/optics`, `/md1img`, `/spmfw`, `/scp1`, `/sspm_1` are defined
+  for display/backup only.
+- During the decryption attempt, `/efs` is temporarily `remount,rw`, because
+  on stock TEEGRIS and gatekeeper also write to these same partitions; this
+  is done only inside `decrypt_stack.sh` and has no effect on the behavior of
+  the Wipe menu.
 
-### ۸.۴ مکانیزم `Reboot → Recovery`
+### 8.4 The `Reboot → Recovery` mechanism
 
-در این گوشی `Reboot → Recovery` با مسیر معمول init کار **نمی‌کرد**:
-TWRP فایل `/etc/recovery.fstab` را با فرمت خودش (نه `fs_mgr`) جایگزین
-می‌کند، بنابراین `read/write_bootloader_message()` در init شکست می‌خورد،
-init بدون ریبوت برمی‌گردد و چون سرویس `recovery` در
-`init.recovery.service.rc` گزینهٔ `oneshot` ندارد، init دوباره همان TWRP
-را اجرا می‌کند؛ نتیجه «ریبوت نرم» بدون لوگوی سامسونگ بود.
+On this phone, `Reboot → Recovery` **did not work** via the usual init path:
+TWRP replaces `/etc/recovery.fstab` with its own format (not `fs_mgr`),
+so `read/write_bootloader_message()` in init fails,
+init returns without rebooting, and because the `recovery` service in
+`init.recovery.service.rc` lacks the `oneshot` option, init runs that same TWRP
+again; the result was a "soft reboot" without the Samsung logo.
 
-اصلاح (پچ ۰۰۱۳ + اسکریپت):
+Fix (patch 0013 + script):
 
-1. `rebootrecovery.sh` خودش BCB را در `/dev/block/by-name/misc` می‌نویسد:
-   `command[32]` و `status[32]` صفر می‌شوند و رشتهٔ `boot-recovery`
-   نوشته می‌شود؛ سپس با `od` بررسی و در `/tmp/rebootrecovery.log`
-   ثبت می‌شود.
-2. `tw_reboot(rb_recovery)` به‌جای تکیه بر init، مستقیماً
+1. `rebootrecovery.sh` writes the BCB to `/dev/block/by-name/misc` itself:
+   `command[32]` and `status[32]` are zeroed and the string `boot-recovery`
+   is written; it is then verified with `od` and logged to
+   `/tmp/rebootrecovery.log`.
+2. Instead of relying on init, `tw_reboot(rb_recovery)` directly calls
    `syscall(__NR_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2,
-   LINUX_REBOOT_CMD_RESTART2, "recovery")` را صدا می‌زند.
-3. اگر syscall رد شود، به `property_set(ANDROID_RB_PROPERTY, "reboot,")`
-   برمی‌گردد؛ BCB نوشته‌شده همچنان بوت‌لودر را به ریکاوری می‌فرستد.
+   LINUX_REBOOT_CMD_RESTART2, "recovery")`.
+3. If the syscall is rejected, it falls back to `property_set(ANDROID_RB_PROPERTY, "reboot,")`;
+   the BCB that was written still sends the bootloader into recovery.
 
-شاهد این عملیات در نشست بعدی در
-`/sdcard/twrp-diag/rebootrecovery.log` (یا `/external_sd/twrp-diag/` و
-`/cache/twrp-diag/`) موجود است.
+Evidence of this operation is available in the next session in
+`/sdcard/twrp-diag/rebootrecovery.log` (or `/external_sd/twrp-diag/` and
+`/cache/twrp-diag/`).
 
-### ۸.۵ ریبوت به Fastboot، دمای CPU، ویبره و Dalvik
+### 8.5 Reboot to Fastboot, CPU temperature, vibration and Dalvik
 
-**`Reboot → Fastboot`** (پچ‌های ۰۰۱۴ و ۰۰۱۸): init برای هدف `fastboot`
-هم باید BCB بنویسد و همان مشکل بخش ۸.۴ را دارد؛ پس دوباره «ریبوت نرم»
-می‌شد. در بیلد ۲۱ تلاش شد TWRP خودش را با
-`execl("/system/bin/recovery", "recovery", "--fastboot")` دوباره اجرا
-کند، ولی این کار هنگ می‌کرد: باینری تازه در همان فرایند و با همان
-دستگاه‌های DRM/USB و ورودی بازشده بالا می‌آمد.
+**`Reboot → Fastboot`** (patches 0014 and 0018): for the `fastboot` target, init
+also has to write the BCB and has the same problem as section 8.4; so it again ended in a "soft reboot".
+In build 21, an attempt was made to have TWRP re-execute itself with
+`execl("/system/bin/recovery", "recovery", "--fastboot")`, but this
+hung: the new binary came up in the same process, with the same
+DRM/USB and input devices already open.
 
-از بیلد ۲۳ مسیر درست همان مسیر بوت واقعی است:
+As of build 23, the correct path is the same as the real boot path:
 
-1. `rebootfastboot.sh` خودش BCB را در `/dev/block/by-name/misc` می‌نویسد
-   (`command[32]` و `status[32]` صفر، سپس `boot-recovery` و
-   `recovery\n--fastboot`) و شاهد آن را در
-   `/tmp/rebootfastboot.log` و پوشه‌های `twrp-diag` نگه می‌دارد.
-2. `tw_reboot(rb_fastboot)` با `LINUX_REBOOT_CMD_RESTART2` و دلیل
-   `recovery` سیستم را ریستارت می‌کند (دقیقاً مثل Reboot→Recovery)، پس
-   کرنل و همهٔ فرایندها از نو بالا می‌آیند.
-3. در بوت بعدی، `args::get_args()` فیلد `recovery` را از `misc` می‌خواند،
-   توکن `--fastboot` را اضافه می‌کند و fastbootd به‌صورت یک فرایند تازه
-   اجرا می‌شود.
-4. پچ ۰۰۱۸ لازم است چون `get_misc_blk_device()` از `ReadDefaultFstab()`
-   استفاده می‌کند و fstab با فرمت TWRP را نمی‌فهمد (`failed to read
-   default fstab`)؛ حالا در صورت شکست به `/dev/block/by-name/misc`
-   برمی‌گردد.
+1. `rebootfastboot.sh` writes the BCB to `/dev/block/by-name/misc` itself
+   (`command[32]` and `status[32]` zeroed, then `boot-recovery` and
+   `recovery\n--fastboot`) and keeps evidence of it in
+   `/tmp/rebootfastboot.log` and the `twrp-diag` folders.
+2. `tw_reboot(rb_fastboot)` restarts the system with `LINUX_REBOOT_CMD_RESTART2` and the reason
+   `recovery` (exactly like Reboot→Recovery), so
+   the kernel and all processes come up from scratch.
+3. On the next boot, `args::get_args()` reads the `recovery` field from `misc`,
+   adds the `--fastboot` token, and fastbootd is started as a fresh
+   process.
+4. Patch 0018 is needed because `get_misc_blk_device()` uses `ReadDefaultFstab()`
+   and does not understand the TWRP-format fstab (`failed to read
+   default fstab`); it now falls back to `/dev/block/by-name/misc`
+   on failure.
 
-**محدودیت fastbootd:** خودِ fastbootd هم فایل `/etc/recovery.fstab` را با
-`fs_mgr` می‌خواند و شکست می‌خورد
-(`ReadDefaultFstab(): failed to find device default fstab`). این خطا
-غیرمرگبار است و ورود/خروج و `fastboot devices` کار می‌کند، ولی
-پارتیشن‌های منطقی `super` از طریق fastboot دیده نمی‌شوند. برای فلش همان
-پارتیشن‌ها از `Install Image` خود TWRP استفاده کنید.
+**fastbootd limitation:** fastbootd itself also reads `/etc/recovery.fstab` with
+`fs_mgr` and fails
+(`ReadDefaultFstab(): failed to find device default fstab`). This error is
+non-fatal, and entering/exiting and `fastboot devices` work, but
+the `super` logical partitions are not visible through fastboot. To flash those
+partitions, use TWRP's own `Install Image`.
 
-**دمای CPU** (پچ ۰۰۱۶): TWRP به‌طور پیش‌فرض `/sys/class/thermal/thermal_zone0/temp`
-را می‌خواند؛ در این گوشی zone0 همان `mtk-master-charger` است و همیشه ۰
-برمی‌گرداند. پچ بین همهٔ `thermal_zone*` دنبال `type` برابر `mtktscpu`
-(و بعد `mtkcput`/`cpu`/هر چیزی که `cpu` دارد) می‌گردد و مسیر درست را
-برمی‌گرداند.
+**CPU temperature** (patch 0016): by default TWRP reads `/sys/class/thermal/thermal_zone0/temp`;
+on this phone zone0 is `mtk-master-charger` and always returns 0.
+The patch searches all `thermal_zone*` for a `type` equal to `mtktscpu`
+(and then `mtkcput`/`cpu`/anything containing `cpu`) and returns the correct
+path.
 
-**محدودیت واقعی دما:** کرنل ریکاوریِ استوک یک بیلد کاهش‌یافته است و در
-حالت ریکاوری فقط زون‌های شارژر و باتری (`thermal_zone0..7`) را ثبت
-می‌کند؛ زون CPU (همان `mtktscpu`) اصلاً وجود ندارد. شاهدش `diag.txt`
-بیلد ۲۱ است: فقط `mtk-master-charger`, `mtk-slave-charger`, `mtk-gauge`
-و `battery` دیده می‌شوند. پس در ریکاوری دمای SoC قابل خواندن نیست. پچ
-در این حالت به زون باتری (`battery`/`mtktsbattery`/`mtk-gauge`) برمی‌گردد
-تا عدد ثابت ۰ نمانَد؛ عددی که می‌بینید **دمای باتری** است، نه CPU، و
-همین در README صادقانه ذکر شده است.
+**Actual temperature limitation:** the stock recovery kernel is a reduced build and in
+recovery mode it registers only the charger and battery zones (`thermal_zone0..7`);
+the CPU zone (i.e. `mtktscpu`) does not exist at all. The evidence is build 21's
+`diag.txt`: only `mtk-master-charger`, `mtk-slave-charger`, `mtk-gauge`
+and `battery` are visible. So the SoC temperature cannot be read in recovery. In this case
+the patch falls back to the battery zone (`battery`/`mtktsbattery`/`mtk-gauge`)
+so that the number doesn't stay fixed at 0; the number you see is the **battery temperature**, not the CPU's, and
+this is stated honestly in the README.
 
-**ویبره** (پچ ۰۰۱۷): درایور `regulator-vibrator` موتور را به‌صورت یک LED
-با `brightness` تا `max_brightness` (۲۵۵) معرفی می‌کند و بعد از probe با
-`brightness=255` روشن می‌ماند. تریگر `transient` هم روی این دستگاه
-**برعکس** کار می‌کند: `activate=1` موتور را به مدت `duration` میلی‌ثانیه
-**خاموش** می‌کند و بعد دوباره روشن می‌گذارد؛ به همین دلیل در بیلد ۲۱
-ویبره همیشه روشن بود و با هر لمس یک ثانیه قطع می‌شد.
+**Vibration** (patch 0017): the `regulator-vibrator` driver exposes the motor as an LED
+with `brightness` up to `max_brightness` (255), and after probe it
+stays on with `brightness=255`. The `transient` trigger also works **in reverse** on this
+device: `activate=1` turns the motor **off** for `duration` milliseconds
+and then leaves it on again; that is why in build 21
+the vibration was always on and cut out for one second on every touch.
 
-از بیلد ۲۳ تریگر و `activate` کنار گذاشته شده‌اند:
+As of build 23, the trigger and `activate` have been dropped:
 
-- `init.recovery.mt6768.rc` در `on fs` و `on boot` مقدار
-  `trigger=none` و `brightness=0` را می‌نویسد، پس موتور از ابتدا خاموش
-  است.
-- `vibrate()` مستقیماً `brightness=max_brightness` می‌نویسد و پس از
-  `timeout_ms` (در یک ترد جداگانه، بدون بلاک‌کردن ورودی) `brightness=0`
-  را برمی‌گرداند؛ پالس‌های هم‌پوشان با یک شمارنده مدیریت می‌شوند.
+- `init.recovery.mt6768.rc` writes `trigger=none` and `brightness=0`
+  in `on fs` and `on boot`, so the motor is off from the
+  start.
+- `vibrate()` writes `brightness=max_brightness` directly and, after
+  `timeout_ms` (in a separate thread, without blocking input), sets `brightness=0`
+  back; overlapping pulses are handled with a counter.
 
-**Dalvik / ART Cache** (پچ ۰۰۱۵): تابع `Wipe_Dalvik_Cache()` با شکست
-مانت `/data` کل عملیات را `false` برمی‌گرداند و فقط پیام کلی
-«Failed to wipe dalvik» می‌داد. حالا ابتدا مسیرهای `/cache/recovery/…`
-پاک می‌شوند و اگر `/data` مانت نشود، پیام دقیق «Unable to mount /data»
-نمایش داده می‌شود و بقیهٔ عملیات Wipe ادامه پیدا می‌کند. خودِ
-`dalvik-cache` داخل `/data` رمزنگاری‌شده است و تا وقتی ریکاوری نمی‌تواند
-`/data` را باز کند (بخش ۹) قابل پاک‌کردن نیست؛ پاک‌کردن کامل آن فقط از
-داخل اندروید (با root) یا پس از فعال‌شدن رمزگشایی ممکن است.
+**Dalvik / ART Cache** (patch 0015): when mounting `/data` failed, the
+`Wipe_Dalvik_Cache()` function returned `false` for the whole operation and only gave the generic message
+"Failed to wipe dalvik". Now the `/cache/recovery/…` paths are wiped first,
+and if `/data` doesn't mount, the specific message "Unable to mount /data"
+is shown and the rest of the Wipe operation continues. The
+`dalvik-cache` itself is inside the encrypted `/data` and, as long as recovery cannot
+unlock `/data` (section 9), it cannot be wiped; wiping it completely is only possible from
+within Android (with root) or once decryption has been enabled.
 
-### ۸.۶ حافظهٔ داخلی و MicroSD
+### 8.6 Internal storage and MicroSD
 
-- MicroSD روی `/external_sd` مانت می‌شود و با exFAT، vfat و ext4 کار
-  می‌کند؛ TWRP هنگام مانت خودش فایل‌سیستم را تشخیص می‌دهد.
-- `/sdcard` به `/data/media/0` نگاشت می‌شود
-  (`RECOVERY_SDCARD_ON_DATA := true`) و فقط وقتی `/data` مانت شده باشد
-  در دسترس است. بکاپ‌ها را روی MicroSD بگذارید.
+- The MicroSD is mounted at `/external_sd` and works with exFAT, vfat and ext4;
+  TWRP detects the filesystem itself when mounting.
+- `/sdcard` is mapped to `/data/media/0`
+  (`RECOVERY_SDCARD_ON_DATA := true`) and is only available when `/data` is mounted.
+  Put your backups on the MicroSD.
 
-### ۸.۷ ابزارهای همراه
+### 8.7 Bundled tools
 
 `fastbootd`, `repacktools`, `lptools`, `resetprop`/`libresetprop`,
-`ntfs-3g` و `TW_EXCLUDE_TWRPAPP` در `BoardConfig.mk` فعال/غیرفعال
-شده‌اند. APEX loader عمداً حذف شده است، چون روی کرنل ۶.۶ این دستگاه با
-خطای `Value too large for defined data type` شکست می‌خورد و
-`twrp.apex.loaded=false` تولید می‌کرد؛ هیچ‌چیز در این ریکاوری به
-کتابخانه‌های APEX نیاز ندارد.
+`ntfs-3g` and `TW_EXCLUDE_TWRPAPP` are enabled/disabled in `BoardConfig.mk`.
+The APEX loader has been intentionally removed, because on this device's 6.6 kernel it
+failed with the error `Value too large for defined data type` and
+produced `twrp.apex.loaded=false`; nothing in this recovery needs
+the APEX libraries.
 
-### ۸.۸ لاگ تشخیصی
+### 8.8 Diagnostic log
 
-سرویس `twrpdiag` (oneshot، از `init.recovery.mt6768.rc`) اسکریپت
-`/sbin/twrp-diag.sh` را اجرا می‌کند. حدود ۴۵ ثانیه پس از بوت، این
-فایل‌ها در اولین مقصد قابل نوشتن ذخیره می‌شوند:
+The `twrpdiag` service (oneshot, from `init.recovery.mt6768.rc`) runs the script
+`/sbin/twrp-diag.sh`. About 45 seconds after boot, these
+files are saved to the first writable destination:
 
-| مسیر | توضیح |
+| Path | Notes |
 |---|---|
-| `/sdcard/twrp-diag/` | فقط اگر `/data` مانت شده باشد |
-| `/external_sd/twrp-diag/` | MicroSD (پایدارترین) |
-| `/cache/twrp-diag/` | پارتیشن cache |
-| `/metadata/twrp-diag/` | `md_udc`، بدون رمز و پایدار |
-| `/tmp/twrp-diag/` | فقط همین نشست |
+| `/sdcard/twrp-diag/` | Only if `/data` is mounted |
+| `/external_sd/twrp-diag/` | MicroSD (most persistent) |
+| `/cache/twrp-diag/` | cache partition |
+| `/metadata/twrp-diag/` | `md_udc`, unencrypted and persistent |
+| `/tmp/twrp-diag/` | This session only |
 
-فایل‌های مهم:
+Important files:
 
-- `diag.txt` — dmesg، ماژول‌های لودشده، دستگاه‌های ورودی/i2c، مانت‌ها،
-  وضعیت TEE و رمزگشایی، همهٔ زون‌های حرارتی، وضعیت ویبره (تریگر فعال و
-  `brightness`، `duration`/`activate`/`state` برای مقایسه)، تنظیمات
-  هپتیک/دمای TWRP، و ۱۲۸ بایت اول `misc`/`boot_para`/`para`
-- `recovery.log` — لاگ خود TWRP
-- `last_kmsg.txt` — لاگ کرنل نشست قبل (برای بررسی ریبوت)
-- `rebootrecovery.log` — شاهد نوشتن BCB برای Reboot→Recovery
-- `rebootfastboot.log` — شاهد نوشتن BCB برای Reboot→Fastboot
-- `decrypt.log`, `fstab_crypto.log` — جزئیات تلاش رمزگشایی
-- `SAVED-TO.txt` — فهرست مقاصدی که فایل‌ها در آن‌ها ذخیره شده‌اند
+- `diag.txt` — dmesg, loaded modules, input/i2c devices, mounts,
+  TEE and decryption status, all thermal zones, vibrator status (active trigger and
+  `brightness`, `duration`/`activate`/`state` for comparison), TWRP
+  haptics/temperature settings, and the first 128 bytes of `misc`/`boot_para`/`para`
+- `recovery.log` — TWRP's own log
+- `last_kmsg.txt` — kernel log of the previous session (for investigating reboots)
+- `rebootrecovery.log` — evidence of the BCB write for Reboot→Recovery
+- `rebootfastboot.log` — evidence of the BCB write for Reboot→Fastboot
+- `decrypt.log`, `fstab_crypto.log` — details of the decryption attempt
+- `SAVED-TO.txt` — list of the destinations the files were saved to
 
-برای ارسال، معمولاً همان `diag.txt` کافی است؛ اگر خالی نبود
-`recovery.log` هم مفید است.
+For sending, `diag.txt` alone is usually enough; if it isn't empty,
+`recovery.log` is useful too.
 
 ---
 
-## ۹) محدودیت رمزگشایی `/data`
+## 9) `/data` decryption limitation
 
-اندروید ۱۵ سامسونگ برای `/data` هم **FBE v2** و هم **رمزنگاری متادیتا**
-(`dm-default-key`) دارد: کل بلوک‌های خام `userdata` با کلیدی رمز شده‌اند
-که در `/metadata` (`md_udc`, p29) نگه‌داری می‌شود. برای بازکردن آن باید
-پشتهٔ امنیتی سامسونگ (TEEGRIS، KeyMint، gatekeeper) بالا بیاید.
+Samsung's Android 15 uses both **FBE v2** and **metadata encryption**
+(`dm-default-key`) for `/data`: all the raw `userdata` blocks are encrypted with a key
+that is stored in `/metadata` (`md_udc`, p29). Unlocking it requires
+Samsung's security stack (TEEGRIS, KeyMint, gatekeeper) to come up.
 
-درخت این پشته را همراه دارد و تلاش می‌کند آن را از پارتیشن `recovery`
-اجرا کند:
+The tree ships this stack and tries to run it from the `recovery`
+partition:
 
-- `decrypt/langsdorff_decrypt.cpp` — بازکردن KeyMint و ساخت
-  `dm-default-key` روی `userdata`
-- `decrypt/gk_verify.cpp` — تأیید رمز با gatekeeper هیدل ۱.۰
+- `decrypt/langsdorff_decrypt.cpp` — unlocking the keys via KeyMint and
+  building `dm-default-key` on `userdata`
+- `decrypt/gk_verify.cpp` — password verification with gatekeeper HIDL 1.0
 - `recovery/root/system/bin/decrypt.sh`, `decrypt_stack.sh`,
   `fstab_crypto.sh`, `data_release.sh`
-- `recovery/root/system/tee/` — کتابخانه‌ها و باینری‌های TEE
+- `recovery/root/system/tee/` — TEE libraries and binaries
 
-اما شواهد لاگ‌ها نشان می‌دهد **بوت‌لودر در حالت ریکاوری عمداً TEE را
-بالا نمی‌آورد**:
+But the evidence in the logs shows that **the bootloader intentionally does not bring up the TEE
+in recovery mode**:
 
 ```
 BOOTPROF: ... lk=6183, tfa=0, sec_os=0, gz=0
@@ -540,207 +542,207 @@ log_store: bootmode: 0x2
 TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 ```
 
-یعنی `tfa=0` و `sec_os=0` و پیام صریح «در بوت ریکاوری TEEGRIS را اجرا
-نکن». نتیجه این است که KeyMint/gatekeeper در دسترس نیستند و هیچ
-تغییری در کرنل یا رم‌دیسک نمی‌تواند این را جبران کند؛ محدودیت در
-پارتیشن `lk` (بوت‌لودر) است.
+That is, `tfa=0` and `sec_os=0`, and the explicit message "do not run TEEGRIS on a
+recovery boot". The result is that KeyMint/gatekeeper are not available, and no
+change to the kernel or ramdisk can compensate for this; the limitation is in
+the `lk` (bootloader) partition.
 
-پیامدها:
+Consequences:
 
-- TWRP نمی‌تواند `/data` رمزنگاری‌شده را باز کند؛ `/sdcard` هم در
-  دسترس نیست.
-- برای بکاپ از **MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید.
-- اگر داده‌ها مهم نیستند، `Format Data` بزنید تا `/data` با کلید تازه
-  قابل استفاده شود.
-- تنها مسیر فنی ممکن برای رمزگشایی، اجرای TWRP از پارتیشن `boot` در
-  بوت عادی است (که TEE بالا می‌آید) یا تغییر `lk`؛ هیچ‌کدام در این
-  نسخه انجام نشده و ریسک خودشان را دارند.
+- TWRP cannot unlock the encrypted `/data`; `/sdcard` is not
+  available either.
+- Use **MicroSD** (`/external_sd`) or USB-OTG for backups.
+- If the data doesn't matter, use `Format Data` so that `/data` becomes usable
+  with a fresh key.
+- The only technically possible route to decryption is running TWRP from the `boot` partition on
+  a normal boot (in which the TEE comes up) or modifying `lk`; neither has been done in this
+  version, and each carries its own risks.
 
 ---
 
-## ۱۰) عیب‌یابی
+## 10) Troubleshooting
 
-| نشانه | علت احتمالی | کار |
+| Symptom | Likely cause | Action |
 |---|---|---|
-| لوگوی سامسونگ و ریبوت | `vbmeta` استوک | بخش ۷.۲ |
-| صفحه سیاه ولی `adb devices` جواب می‌دهد | روشنایی/پنل یا ماژول | `diag.txt` و `TW_BRIGHTNESS_PATH` را بررسی کنید |
-| تاچ کار نمی‌کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
-| `Reboot → Recovery` بدون لوگو و سریع | BCB نوشته نشده | `misc` را در `diag.txt` ببینید؛ نسخهٔ دارای پچ ۰۰۱۳ را فلش کنید |
-| `Reboot → Fastboot` باز TWRP را بالا می‌آورد یا هنگ می‌کند | init نمی‌تواند BCB بنویسد | پچ‌های ۰۰۱۴ و ۰۰۱۸؛ `rebootfastboot.log` را ببینید |
-| دمای CPU همیشه ۰ | خواندن `thermal_zone0` (شارژر) | پچ ۰۰۱۶؛ `diag.txt` را ببینید |
-| دمای نمایش‌داده‌شده پایین‌تر از دمای واقعی SoC است | کرنل ریکاوری زون CPU ندارد | طبیعی است؛ عدد، دمای باتری است (بخش ۸.۵) |
-| ویبره همیشه روشن است یا با لمس قطع می‌شود | تریگر `transient` معکوس | پچ ۰۰۱۷؛ `trigger`/`brightness` را در `diag.txt` ببینید |
-| ویبره در ریکاوری کار نمی‌کند | `brightness`/`max_brightness` | پچ ۰۰۱۷؛ مقدار `brightness` را در `diag.txt` ببینید |
-| Dalvik پاک نمی‌شود یا «Failed to wipe dalvik» | `/data` مانت نمی‌شود | پچ ۰۰۱۵؛ `dalvik-cache` داخل `/data` رمزنگاری‌شده بدون رمزگشایی در دسترس نیست |
-| `/data` مانت نمی‌شود | رمزنگاری متادیتا | طبیعی است؛ بخش ۹ |
-| پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
-| `E:Unhandled flag: 'inlinecrypt'` | توکن ناشناخته در fstab | `inlinecrypt` را به `/data` اضافه نکنید |
-| Odin روی `FAIL` می‌ماند | KG/RMM یا `vbmeta`/مدل اشتباه | بخش ۷.۱ |
+| Samsung logo and reboot | Stock `vbmeta` | Section 7.2 |
+| Black screen, but `adb devices` responds | Brightness/panel or module | Check `diag.txt` and `TW_BRIGHTNESS_PATH` |
+| Touch doesn't work | Different panel/touch revision | `diag.txt` and replacing the modules with those from the same firmware |
+| `Reboot → Recovery` is quick and without a logo | BCB not written | Check `misc` in `diag.txt`; flash a version that includes patch 0013 |
+| `Reboot → Fastboot` brings TWRP up again or hangs | init cannot write the BCB | Patches 0014 and 0018; check `rebootfastboot.log` |
+| CPU temperature always 0 | Reading `thermal_zone0` (charger) | Patch 0016; check `diag.txt` |
+| Displayed temperature is lower than the actual SoC temperature | The recovery kernel has no CPU zone | This is normal; the number is the battery temperature (section 8.5) |
+| Vibration is always on or cuts out on touch | Inverted `transient` trigger | Patch 0017; check `trigger`/`brightness` in `diag.txt` |
+| Vibration doesn't work in recovery | `brightness`/`max_brightness` | Patch 0017; check the `brightness` value in `diag.txt` |
+| Dalvik isn't wiped, or "Failed to wipe dalvik" | `/data` doesn't mount | Patch 0015; `dalvik-cache` inside the encrypted `/data` is not accessible without decryption |
+| `/data` doesn't mount | Metadata encryption | This is normal; section 9 |
+| Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
+| `E:Unhandled flag: 'inlinecrypt'` | Unknown token in the fstab | Don't add `inlinecrypt` to `/data` |
+| Odin gets stuck at `FAIL` | KG/RMM or wrong `vbmeta`/model | Section 7.1 |
 
-اگر TWRP بالا می‌آید ولی مشکلی هست، اول `diag.txt` را از MicroSD
-بردارید؛ تقریباً همهٔ سؤال‌های «چرا» در همان یک فایل جواب دارند.
+If TWRP comes up but something is wrong, first grab `diag.txt` from the MicroSD;
+almost every "why" question is answered in that one file.
 
 ---
 
-## ۱۱) فهرست پچ‌ها
+## 11) Patch list
 
-پچ‌ها روی `bootable/recovery` (شاخهٔ `android-12.1`) اعمال می‌شوند.
-شماره‌های ۰۰۰۴ و ۰۰۰۶ حذف شده‌اند؛ محتوایشان در پچ‌های بعدی ادغام شد.
+The patches are applied to `bootable/recovery` (branch `android-12.1`).
+Numbers 0004 and 0006 were removed; their contents were merged into later patches.
 
-| پچ | موضوع |
+| Patch | Subject |
 |---|---|
-| `0001-decrypt-through-ce-unlock` | هدایت رمز به `decrypt_user.sh` و پشتهٔ TEE به‌جای keymaster 4 HIDL |
-| `0002-super-partition-size` | نمایش اندازهٔ واقعی `/super` در صفحهٔ بکاپ |
-| `0003-data-on-decrypted-mapper` | مانت `/data` روی `/dev/block/mapper/userdata` پس از رمزگشایی |
-| `0005-format-data-raw-partition` | آزادکردن `dm-default-key` پیش از فرمت `/data` |
-| `0007-storage-path-after-late-data-mount` | اصلاح `/sdcard` وقتی `/data` دیر مانت می‌شود |
-| `0008-flash-image-to-logical-partitions` | نوشتن ایمیج خام/sparse روی پارتیشن‌های منطقی |
-| `0009-wait-for-decrypt-during-splash` | صبر برای `decrypt.sh` در اسپلش و تنظیم وضعیت رمز |
-| `0010-fscrypt-policies-through-decrypt-refs` | نگاشت policyهای fscrypt v2 در backup/restore |
-| `0011-remount-data-under-stale-sdcard-bind` | رفع bind کهنهٔ `/sdcard` روی `/data` |
-| `0012-keep-logical-wipe-flags` | احترام به `wipeingui` برای پارتیشن‌های `super` |
-| `0013-direct-reboot-recovery` | `LINUX_REBOOT_CMD_RESTART2` مستقیم برای Reboot→Recovery |
-| `0014-direct-fastboot-restart` | BCB `--fastboot` + `RESTART2("recovery")` برای Reboot→Fastboot |
-| `0015-dalvik-without-data` | پاک‌کردن Dalvik بدون شکست وقتی `/data` مانت نیست |
-| `0016-autodetect-cpu-temp-zone` | پیدا کردن زون CPU با `type` و fallback به زون باتری |
-| `0017-enable-leds-vibrator-trigger` | درایو ویبره فقط با `brightness` و ریست تریگر |
-| `0018-bootloader-message-misc-fallback` | fallback خواندن/نوشتن BCB به `/dev/block/by-name/misc` |
+| `0001-decrypt-through-ce-unlock` | Routing the password to `decrypt_user.sh` and the TEE stack instead of keymaster 4 HIDL |
+| `0002-super-partition-size` | Showing the real size of `/super` on the backup screen |
+| `0003-data-on-decrypted-mapper` | Mounting `/data` on `/dev/block/mapper/userdata` after decryption |
+| `0005-format-data-raw-partition` | Releasing `dm-default-key` before formatting `/data` |
+| `0007-storage-path-after-late-data-mount` | Fixing `/sdcard` when `/data` is mounted late |
+| `0008-flash-image-to-logical-partitions` | Writing raw/sparse images to logical partitions |
+| `0009-wait-for-decrypt-during-splash` | Waiting for `decrypt.sh` during the splash and setting the encryption state |
+| `0010-fscrypt-policies-through-decrypt-refs` | Mapping fscrypt v2 policies in backup/restore |
+| `0011-remount-data-under-stale-sdcard-bind` | Clearing the stale `/sdcard` bind on `/data` |
+| `0012-keep-logical-wipe-flags` | Honoring `wipeingui` for `super` partitions |
+| `0013-direct-reboot-recovery` | Direct `LINUX_REBOOT_CMD_RESTART2` for Reboot→Recovery |
+| `0014-direct-fastboot-restart` | `--fastboot` BCB + `RESTART2("recovery")` for Reboot→Fastboot |
+| `0015-dalvik-without-data` | Wiping Dalvik without failing when `/data` isn't mounted |
+| `0016-autodetect-cpu-temp-zone` | Finding the CPU zone by `type`, with fallback to the battery zone |
+| `0017-enable-leds-vibrator-trigger` | Driving the vibrator with `brightness` only and resetting the trigger |
+| `0018-bootloader-message-misc-fallback` | BCB read/write fallback to `/dev/block/by-name/misc` |
 
 ---
 
-## ۱۲) تغییرات
+## 12) Changes
 
-### بیلد ۲۳ — `dabe5f4`
+### Build 23 — `dabe5f4`
 
-- پچ ۰۰۱۴ بازنویسی شد: به‌جای `execl` در همان فرایند (که هنگ می‌کرد)،
-  `rebootfastboot.sh` خودش BCB را (`boot-recovery` + `recovery\n--fastboot`)
-  می‌نویسد و TWRP با
-  `RESTART2("recovery")` ریستارت می‌شود؛ fastbootd در بوت بعدی به‌صورت
-  فرایند تازه بالا می‌آید.
-- پچ ۰۰۱۸ جدید: `get_misc_blk_device()` وقتی `ReadDefaultFstab()` شکست
-  می‌خورد، به `/dev/block/by-name/misc` برمی‌گردد؛ پیش از این
-  `failed to read default fstab` باعث می‌شد BCB نه خوانده شود و نه
-  نوشته شود.
-- پچ ۰۰۱۷ بازنویسی شد: تریگر `transient` (که روی این درایور معکوس کار
-  می‌کند) کنار گذاشته شد؛ ویبره با نوشتن مستقیم `brightness` روشن و در
-  یک ترد جداگانه خاموش می‌شود. مشکل «همیشه روشن + قطع شدن با لمس» رفع شد.
-- `init.recovery.mt6768.rc` در `on fs` و `on boot` مقدار
-  `trigger=none` و `brightness=0` را می‌نویسد تا موتور از ابتدا خاموش
-  باشد.
-- پچ ۰۰۱۶: fallback به زون باتری وقتی کرنل ریکاوری هیچ زون CPU ندارد؛
-  عدد نمایش‌داده‌شده دمای باتری است (بخش ۸.۵).
-- `twrp-diag.sh`: ویبره قبل و بعد از آزمون تریگر ثبت می‌شود و در پایان
-  `trigger=none`/`brightness=0` بازگردانده می‌شود.
-- خروجی تأییدشده (GitHub Actions run number ۲۳، شناسهٔ `43225710875`،
-  کامیت `dabe5f4`؛ هدر بوت فقط در اندازهٔ رم‌دیسک و digest با بیلد ۲۱
-  تفاوت دارد):
-  `recovery.img` = `23e2c99b27eea82b859dc0f852bdf290`،
+- Patch 0014 rewritten: instead of `execl` in the same process (which hung),
+  `rebootfastboot.sh` writes the BCB itself (`boot-recovery` + `recovery\n--fastboot`)
+  and TWRP is restarted with
+  `RESTART2("recovery")`; fastbootd comes up on the next boot as a
+  fresh process.
+- New patch 0018: when `ReadDefaultFstab()` fails, `get_misc_blk_device()`
+  falls back to `/dev/block/by-name/misc`; previously
+  `failed to read default fstab` meant the BCB was neither read nor
+  written.
+- Patch 0017 rewritten: the `transient` trigger (which works inverted on this
+  driver) was dropped; the vibrator is turned on by writing `brightness` directly and
+  turned off in a separate thread. The "always on + cuts out on touch" problem is fixed.
+- `init.recovery.mt6768.rc` writes `trigger=none` and `brightness=0`
+  in `on fs` and `on boot` so that the motor is off from the
+  start.
+- Patch 0016: fallback to the battery zone when the recovery kernel has no CPU zone at all;
+  the displayed number is the battery temperature (section 8.5).
+- `twrp-diag.sh`: the vibrator is logged before and after the trigger test, and at the end
+  `trigger=none`/`brightness=0` is restored.
+- Verified output (GitHub Actions run number 23, ID `43225710875`,
+  commit `dabe5f4`; the boot header differs from build 21 only in the ramdisk size and
+  digest):
+  `recovery.img` = `23e2c99b27eea82b859dc0f852bdf290`,
   `twrp_a14m.tar.md5` = `d53f4f01d14300599c35e357fc0cbbed`.
-  در رم‌دیسک بررسی شد: `rebootfastboot.sh` (0755)، `trigger none`/
-  `brightness 0` در rc، رشتهٔ fallback باتری و `by-name/misc` در
-  کتابخانه‌ها موجود هستند.
-- تست روی گوشی و تأیید از لاگ‌های MicroSD:
-  - `rebootfastboot.log`: نوشتن درست `boot-recovery` و
-    `recovery\n--fastboot` در `misc`.
-  - `last_kmsg`: `init: starting service 'fastbootd'` و
-    `fastbootd: initializing functionfs`، سپس
+  Checked in the ramdisk: `rebootfastboot.sh` (0755), `trigger none`/
+  `brightness 0` in the rc, and the battery fallback string and `by-name/misc` in the
+  libraries are present.
+- Tested on the phone and confirmed from the MicroSD logs:
+  - `rebootfastboot.log`: `boot-recovery` and
+    `recovery\n--fastboot` correctly written to `misc`.
+  - `last_kmsg`: `init: starting service 'fastbootd'` and
+    `fastbootd: initializing functionfs`, then
     `reboot: Restarting system with command 'recovery'`.
-  - dmesg: `trigger=[none]`، `brightness=0` و پالس‌های ویبرهٔ ۸۰ms فقط
-    هنگام لمس (بدون روشن‌ماندن دائمی).
-  - `diag.txt`: `thermal_zone6/7` (باتری) = ۳۶°C و پیام
-    «No CPU thermal zone in this kernel; using the battery zone».
+  - dmesg: `trigger=[none]`, `brightness=0` and 80ms vibration pulses only
+    on touch (no staying on permanently).
+  - `diag.txt`: `thermal_zone6/7` (battery) = 36°C and the message
+    "No CPU thermal zone in this kernel; using the battery zone".
 
-### بیلد ۲۱ — `75e9a52`
+### Build 21 — `75e9a52`
 
-- پچ ۰۰۱۴: **Reboot → Fastboot** با اجرای مجدد `recovery --fastboot`
-  در همان PID درست شد؛ دیگر ریبوت نرم به TWRP نداریم.
-- پچ ۰۰۱۵: **Wipe Dalvik** دیگر با نبود `/data` کل عملیات را fail
-  نمی‌کند؛ مسیرهای `/cache` پاک می‌شوند و پیام دقیق «Unable to mount
-  /data» نمایش داده می‌شود.
-- پچ ۰۰۱۶: دمای CPU با تشخیص زون `mtktscpu` (و fallbackهای نام‌محور)
-  به‌جای `thermal_zone0` نمایش داده می‌شود.
-- پچ ۰۰۱۷: ویبره با انتخاب تریگر LED `transient` در ریکاوری کار
-  می‌کند؛ fallback به `timed_output` و `brightness`.
-- `twrp-diag.sh`: افزودن زون‌های حرارتی، وضعیت ویبره/تریگر، ماژول‌های
-  ویبره و تنظیمات هپتیک و دمای TWRP به `diag.txt`.
-- خروجی تأییدشده (GitHub Actions run `43210526874`):
-  `recovery.img` = `385a68bf44011c9190b621e9c2297d4f`،
+- Patch 0014: **Reboot → Fastboot** fixed by re-executing `recovery --fastboot`
+  in the same PID; no more soft reboot into TWRP.
+- Patch 0015: **Wipe Dalvik** no longer fails the whole operation when `/data` is
+  missing; the `/cache` paths are wiped and the specific message "Unable to mount
+  /data" is shown.
+- Patch 0016: the CPU temperature is shown by detecting the `mtktscpu` zone (and name-based fallbacks)
+  instead of `thermal_zone0`.
+- Patch 0017: vibration works in recovery by selecting the `transient` LED trigger;
+  fallback to `timed_output` and `brightness`.
+- `twrp-diag.sh`: added thermal zones, vibrator/trigger status, vibrator
+  modules, and TWRP haptics and temperature settings to `diag.txt`.
+- Verified output (GitHub Actions run `43210526874`):
+  `recovery.img` = `385a68bf44011c9190b621e9c2297d4f`,
   `twrp_a14m.tar.md5` = `cda7490defa69f6c86a1218cbc6ed5d3`.
 
-### بیلد ۲۰ — `363347a`
+### Build 20 — `363347a`
 
-- پچ ۰۰۱۲: پارتیشن‌های منطقی با `wipeingui` در **Advanced Wipe** دیده
-  می‌شوند (بکاپ همچنان مدیریت‌شده).
-- پچ ۰۰۱۳: **Reboot → Recovery** با نوشتن BCB و `RESTART2` مستقیم
-  درست شد؛ دیگر «ریبوت نرم» به خود TWRP نداریم.
-- `rebootrecovery.sh`: پاک‌کردن command/status، نوشتن `boot-recovery`،
-  بررسی با `od` و کپی شاهد در `/sdcard`, `/external_sd`, `/cache`.
-- `twrp-diag.sh`: افزودن dump پارتیشن‌های `misc`, `boot_para`, `para`
-  و کپی `/proc/last_kmsg` و `/tmp/rebootrecovery.log`.
-- فلگ `flashimg=1` برای هر هشت پارتیشن منطقی.
+- Patch 0012: logical partitions with `wipeingui` are visible in **Advanced Wipe**
+  (backup still managed).
+- Patch 0013: **Reboot → Recovery** fixed by writing the BCB and a direct `RESTART2`;
+  no more "soft reboot" back into TWRP itself.
+- `rebootrecovery.sh`: clearing command/status, writing `boot-recovery`,
+  verifying with `od`, and copying the evidence to `/sdcard`, `/external_sd`, `/cache`.
+- `twrp-diag.sh`: added a dump of the `misc`, `boot_para`, `para` partitions
+  and copying of `/proc/last_kmsg` and `/tmp/rebootrecovery.log`.
+- `flashimg=1` flag for all eight logical partitions.
 
-### بیلد ۱۹ — `6fae5cf`
+### Build 19 — `6fae5cf`
 
-- مانت فقط‌خواندنی پارتیشن‌های `super` (`fsflags=ro`) و اصلاح فلگ‌های
-  fstab؛ حذف ورودی‌های مرده.
-- `efs`/`sec_efs` در زمان رمزگشایی موقتاً read-write می‌شوند.
-- بهبود تشخیص و ذخیرهٔ `twrp-diag` روی `/metadata` و MicroSD (exFAT).
+- Read-only mounting of the `super` partitions (`fsflags=ro`) and fixes to the
+  fstab flags; removal of dead entries.
+- `efs`/`sec_efs` are temporarily made read-write during decryption.
+- Improved detection and saving of `twrp-diag` on `/metadata` and MicroSD (exFAT).
 
-### بیلد ۱۸ — `e4e351b` و پیش از آن
+### Build 18 — `e4e351b` and earlier
 
-- حذف APEX برای رفع خطاهای `twrp.apex.loaded=false`.
-- افزودن `flashimg` و تلاش برای نوشتن روی پارتیشن‌های منطقی.
-- ساخت پشتهٔ رمزگشایی (KeyMint AIDL + TEEGRIS + gatekeeper) و کشف
-  اینکه بوت‌لودر در حالت ریکاوری TEE را اجرا نمی‌کند.
+- Removed APEX to fix the `twrp.apex.loaded=false` errors.
+- Added `flashimg` and attempted writing to logical partitions.
+- Built the decryption stack (KeyMint AIDL + TEEGRIS + gatekeeper) and discovered
+  that the bootloader does not run the TEE in recovery mode.
 
 ---
 
-## ۱۳) استخراج مجدد prebuiltها
+## 13) Re-extracting the prebuilts
 
-اگر فریمور گوشی را آپدیت کردید:
+If you have updated the phone's firmware:
 
 ```bash
 cd device/samsung/a14m
 ./tools/extract_from_recovery.sh /path/to/recovery.img
 ```
 
-اسکریپت هدر بوت v2 را می‌خواند، آفست‌ها را با page size حساب می‌کند،
-`prebuilt/kernel`, `dtbo.img`, `dtb.img` را بیرون می‌کشد، رم‌دیسک را
-(gzip/lz4/xz/lzma/bzip2) باز می‌کند و `lib/modules/*` را در
-`prebuilt/modules/` می‌ریزد، فایل‌های rc را به‌روز می‌کند و MD5ها را
-چاپ می‌کند. پیش‌نیاز: `python3` و ابزار فشرده‌سازی متناظر.
+The script reads the v2 boot header, computes the offsets from the page size,
+extracts `prebuilt/kernel`, `dtbo.img`, `dtb.img`, unpacks the ramdisk
+(gzip/lz4/xz/lzma/bzip2) and puts `lib/modules/*` into
+`prebuilt/modules/`, updates the rc files and prints the
+MD5s. Requirements: `python3` and the corresponding compression tool.
 
 ---
 
-## ۱۴) هشدارها
+## 14) Warnings
 
-- هرگز `preloader`, `lk`, `tee1` یا `tzar` را فلش نکنید؛ ریسک بریک سخت
-  دارد. این درخت فقط `recovery` را هدف می‌گیرد.
-- بازکردن بوت‌لودر `Warranty Bit` را برای همیشه ۱ می‌کند (Knox تریپ).
-- `PLATFORM_SECURITY_PATCH` روی `2099-12-31` است تا anti-rollback جلوی
-  بوت تصویر کاستوم را نگیرد.
-- قبل از هر کاری از داده‌های مهم بکاپ بگیرید و فایل‌های استوک فریمور
-  خودتان (`AP`, `BL`, `CSC`) را نگه دارید.
+- Never flash `preloader`, `lk`, `tee1` or `tzar`; doing so risks a hard
+  brick. This tree targets `recovery` only.
+- Unlocking the bootloader permanently sets `Warranty Bit` to 1 (Knox trip).
+- `PLATFORM_SECURITY_PATCH` is set to `2099-12-31` so that anti-rollback doesn't block
+  booting the custom image.
+- Before doing anything, back up your important data and keep your own stock firmware
+  files (`AP`, `BL`, `CSC`).
 
 ---
 
-## ۱۵) مراجع
+## 15) References
 
-- منیفست: `minimal-manifest-twrp/platform_manifest_twrp_aosp` شاخهٔ `twrp-12.1`
-- سورس TWRP: `TeamWin/android_bootable_recovery` شاخهٔ `android-12.1`
-- fstab و نام پارتیشن‌ها: `system/etc/recovery.fstab` داخل رم‌دیسک استوک
-  (`tools/stock_recovery.fstab` برای مقایسه)
-- نام پنل/تاچ/بک‌لایت: `dtbo.img` و ماژول‌های استوک
-- درخت‌های مشابه (فقط برای مقایسه، نه کپی): `twrpdtgen/android_device_samsung_a14m`,
+- Manifest: `minimal-manifest-twrp/platform_manifest_twrp_aosp`, branch `twrp-12.1`
+- TWRP source: `TeamWin/android_bootable_recovery`, branch `android-12.1`
+- fstab and partition names: `system/etc/recovery.fstab` inside the stock ramdisk
+  (`tools/stock_recovery.fstab` for comparison)
+- Panel/touch/backlight names: `dtbo.img` and the stock modules
+- Similar trees (for comparison only, not copied): `twrpdtgen/android_device_samsung_a14m`,
   `forforksake/recovery_device_samsung_a14m`
 
 ---
 
-## مجوز
+## License
 
 ```
 SPDX-License-Identifier: Apache-2.0
 ```
 
-فایل‌های prebuilt (کرنل، DTB/DTBO و ماژول‌ها) متعلق به سامسونگ/مدیاتک
-هستند و تحت مجوز استوک فریمور توزیع می‌شوند.
+The prebuilt files (kernel, DTB/DTBO and modules) belong to Samsung/MediaTek
+and are distributed under the stock firmware's license.
