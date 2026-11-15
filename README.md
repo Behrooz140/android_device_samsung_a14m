@@ -3,7 +3,7 @@
 درخت دستگاه (device tree) اختصاصی برای ساخت **TWRP 12.1** روی
 **Samsung Galaxy A14 4G — SM-A145P**، بر پایهٔ فایل ریکاوری استوک خودِ گوشی.
 
-> **وضعیت: بیلد ۲۰ روی گوشی تست شده و کار می‌کند.**
+> **وضعیت: بیلد ۲۳ روی گوشی تست شده و کار می‌کند.**
 > بوت، نمایشگر، تاچ، ذخیره‌سازی، پارتیشن‌های منطقی `super`،
 > `Install Image` روی پارتیشن‌های منطقی، دیده‌شدن آن‌ها در
 > **Advanced Wipe** و **Reboot → Recovery** همگی درست کار می‌کنند.
@@ -128,7 +128,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← تعریف langsdorff_decrypt و gk_verify
 │   ├── langsdorff_decrypt.cpp  ← بازکردن FBE v2 + متادیتا با KeyMint
 │   └── gk_verify.cpp           ← تأیید رمز با gatekeeper هیدل ۱.۰
-├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۷)
+├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۸)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB، TEE، سرویس decrypt، diag
 │   ├── init.recovery.samsung.rc← آماده‌سازی efs

@@ -5,7 +5,7 @@
 A dedicated device tree for building **TWRP 12.1** for the
 **Samsung Galaxy A14 4G — SM-A145P**, based on the phone's own stock recovery file.
 
-> **Status: build 20 has been tested on the phone and works.**
+> **Status: build 23 has been tested on the phone and works.**
 > Boot, display, touch, storage, the `super` logical partitions,
 > `Install Image` to logical partitions, their visibility in
 > **Advanced Wipe**, and **Reboot → Recovery** all work correctly.
@@ -130,7 +130,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← defines langsdorff_decrypt and gk_verify
 │   ├── langsdorff_decrypt.cpp  ← unlocks FBE v2 + metadata with KeyMint
 │   └── gk_verify.cpp           ← password verification with gatekeeper HIDL 1.0
-├── patches/                    ← TWRP source patches (0001 to 0017)
+├── patches/                    ← TWRP source patches (0001 to 0018)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB, TEE, decrypt service, diag
 │   ├── init.recovery.samsung.rc← efs preparation
