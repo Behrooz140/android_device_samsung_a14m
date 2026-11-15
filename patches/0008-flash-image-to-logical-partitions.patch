@@ -115,7 +115,7 @@ index 4cf1a23..433fc6e 100755
  
  bool TWPartition::Flash_Image_FI(const string& Filename, ProgressTracking *progress) {
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
-index 14a1f43..fcc3328 100755
+index 14a1f43..75301ff 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
 @@ -3595,6 +3595,105 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
@@ -126,7 +126,7 @@ index 14a1f43..fcc3328 100755
 +// pointer is written to super first (the size changed); either way the new
 +// mapping is created writable, because liblp otherwise applies the read-only
 +// attribute Samsung puts on every logical partition and mkfs/dd would fail.
-+static bool TWPartitionManager::remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
++bool TWPartitionManager::remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
 +		const std::string& bare_partition_name, const std::string& partition_name,
 +		uint32_t slot, const android::fs_mgr::LpMetadata* metadata) {
 +	// only replace a link this recovery made, never a by-name entry for a physical partition

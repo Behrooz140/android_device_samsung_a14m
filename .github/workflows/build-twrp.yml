@@ -202,7 +202,9 @@ jobs:
 
           . build/envsetup.sh
           lunch "twrp_${DEVICE}-${VARIANT}"
-          mka "$BUILD_TARGET" -j"$(nproc --all)"
+          # -k keeps compiling the other files after a failure, so one run
+          # reports every broken source file instead of only the first
+          mka "$BUILD_TARGET" -j"$(nproc --all)" -k
 
       - name: Collect outputs
         if: success()
