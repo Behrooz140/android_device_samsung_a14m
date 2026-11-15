@@ -5,10 +5,11 @@
 A dedicated device tree for building **TWRP 12.1** for the
 **Samsung Galaxy A14 4G — SM-A145P**, based on the phone's own stock recovery file.
 
-> **Status: build 23 has been tested on the phone and works.**
+> **Status: build 30 has been tested on the phone and works.**
 > Boot, display, touch, storage, the `super` logical partitions,
 > `Install Image` to logical partitions, their visibility in
-> **Advanced Wipe**, and **Reboot → Recovery** all work correctly.
+> **Advanced Wipe**, **Reboot → Recovery**, and persistent TWRP settings all
+> work correctly.
 >
 > The only remaining limitation is **`/data` decryption**, which is practically
 > impossible from the `recovery` partition (section 9). This limitation stems from
@@ -44,7 +45,8 @@ Repository: `https://github.com/Behrooz140/android_device_samsung_a14m`
 | APEX | Removed | `TW_EXCLUDE_APEX := true` |
 
 `Reboot → Fastboot`, vibration and the battery temperature were tested on the
-phone in build 23 and confirmed with the MicroSD logs (section 12).
+phone in build 23 and re-confirmed in build 30 with the MicroSD logs
+(section 12).
 
 ---
 
@@ -659,7 +661,7 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 
 ## 12) Changes
 
-### Unreleased (next build)
+### Build 30 — `62856e9`
 
 Found while testing build 29 on the phone (the `twrp-diag` logs):
 
@@ -676,11 +678,14 @@ Found while testing build 29 on the phone (the `twrp-diag` logs):
   `InfoManager loading from …` / `InfoManager saving …` lines from
   `recovery.log`, so settings persistence is verifiable from `diag.txt` alone.
 
-Build 29 itself confirmed the earlier fixes on the phone: the log shows
-`InfoManager saving '/cache/recovery/.twrps'` before the reboot and
-`InfoManager loading from '/cache/recovery/.twrps'` after it, and wiping
-`/system_root` finished with `operation_end - status=0`. `/data` remains
-undecryptable for the bootloader reason in section 9.
+Build 30 was flashed on the phone and the new logs confirm it:
+
+- the settings file is read back after a reboot:
+  `InfoManager loading from '/cache/recovery/.twrps'`;
+- wiping `/system_root` no longer shows the red error; `recovery.log` keeps a
+  single `Unable to mount '/system_root'` line and the operation ends with
+  `operation_end - status=0`;
+- the new `recovery.log` has no `E:` line and no GUI error.
 
 ### Build 29 — `4d14983`
 

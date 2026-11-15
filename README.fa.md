@@ -5,10 +5,11 @@
 درخت دستگاه (device tree) اختصاصی برای ساخت **TWRP 12.1** روی
 **Samsung Galaxy A14 4G — SM-A145P**، بر پایهٔ فایل ریکاوری استوک خودِ گوشی.
 
-> **وضعیت: بیلد ۲۳ روی گوشی تست شده و کار می‌کند.**
+> **وضعیت: بیلد ۳۰ روی گوشی تست شده و کار می‌کند.**
 > بوت، نمایشگر، تاچ، ذخیره‌سازی، پارتیشن‌های منطقی `super`،
 > `Install Image` روی پارتیشن‌های منطقی، دیده‌شدن آن‌ها در
-> **Advanced Wipe** و **Reboot → Recovery** همگی درست کار می‌کنند.
+> **Advanced Wipe**، **Reboot → Recovery** و پایدارماندن تنظیمات TWRP
+> همگی درست کار می‌کنند.
 >
 > تنها محدودیت باقی‌مانده **رمزگشایی `/data`** است که از پارتیشن
 > `recovery` عملاً غیرممکن است (بخش ۹). این محدودیت ناشی از رفتار
@@ -44,7 +45,7 @@
 | APEX | حذف‌شده | `TW_EXCLUDE_APEX := true` |
 
 موارد `Reboot → Fastboot`، ویبره و دمای باتری در بیلد ۲۳ روی گوشی تست
-شدند و با لاگ‌های MicroSD تأیید شدند (بخش ۱۲).
+شدند و در بیلد ۳۰ هم با لاگ‌های MicroSD دوباره تأیید شدند (بخش ۱۲).
 
 ---
 
@@ -660,7 +661,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 
 ## ۱۲) تغییرات
 
-### منتشرنشده (بیلد بعدی)
+### بیلد ۳۰ — `62856e9`
 
 مواردی که هنگام تست بیلد ۲۹ روی گوشی پیدا شد (لاگ‌های `twrp-diag`):
 
@@ -679,11 +680,14 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
   `recovery.log` گزارش می‌کند، پس پایداری تنظیمات فقط از روی `diag.txt`
   قابل بررسی است.
 
-خود بیلد ۲۹ رفع‌های قبلی را روی گوشی تأیید کرد: لاگ نشان می‌دهد
-`InfoManager saving '/cache/recovery/.twrps'` پیش از ریبوت و
-`InfoManager loading from '/cache/recovery/.twrps'` پس از آن، و Wipe روی
-`/system_root` با `operation_end - status=0` تمام شد. `/data` به همان
-دلیل بوت‌لودر در بخش ۹ هنوز رمزگشایی نمی‌شود.
+بیلد ۳۰ روی گوشی فلش شد و لاگ‌های جدید همه را تأیید می‌کنند:
+
+- فایل تنظیمات پس از ریبوت دوباره خوانده می‌شود:
+  `InfoManager loading from '/cache/recovery/.twrps'`؛
+- Wipe روی `/system_root` دیگر خطای سرخ نمی‌دهد؛ در `recovery.log` فقط یک
+  خط `Unable to mount '/system_root'` می‌ماند و عملیات با
+  `operation_end - status=0` تمام می‌شود؛
+- در `recovery.log` جدید هیچ خط `E:` و هیچ خطای رابط گرافیکی نیست.
 
 ### بیلد ۲۹ — `4d14983`
 
