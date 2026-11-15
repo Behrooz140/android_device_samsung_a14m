@@ -17,7 +17,9 @@ $(call inherit-product, device/samsung/a14m/device.mk)
 PRODUCT_DEVICE := a14m
 PRODUCT_NAME := twrp_a14m
 PRODUCT_BRAND := samsung
-PRODUCT_MODEL := SM-A145P
+# Fallback only: at boot, model_from_bootloader.sh replaces the ro.product.*model
+# properties with the bootloader's ro.boot.em.model (SM-A145P, SM-A145R, ...).
+PRODUCT_MODEL := Galaxy A14 4G
 PRODUCT_MANUFACTURER := samsung
 
 PRODUCT_GMS_CLIENTID_BASE := android-samsung
