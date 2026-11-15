@@ -1,8 +1,72 @@
 diff --git a/partition.cpp b/partition.cpp
-index 184cb16..e4eea85 100755
+index 4cf1a23..433fc6e 100755
 --- a/partition.cpp
 +++ b/partition.cpp
-@@ -3303,6 +3303,37 @@ bool TWPartition::Flash_Image(PartitionSettings *part_settings) {
+@@ -1819,6 +1819,17 @@ bool TWPartition::Wipe(string New_File_System) {
+ 		return false;
+ 	}
+ 
++	if (Is_Super) {
++		// Samsung marks every logical partition read-only in the super
++		// metadata, so the dm node TWRP mounted is read-only and every write
++		// (mkfs, dd) fails with EACCES.  Remap it writable before wiping; it
++		// stays mounted read-only afterwards because of fsflags=ro.
++		if (Is_Mounted() && !UnMount(true))
++			return false;
++		if (!PartitionManager.Make_Super_Volume_Writable(this))
++			return false;
++	}
++
+ 	if (Mount_Point == "/cache")
+ 		Log_Offset = 0;
+ 
+@@ -1838,7 +1849,12 @@ bool TWPartition::Wipe(string New_File_System) {
+ 		recreate_media = false;
+ 	} else {
+ 		DataManager::GetValue(TW_RM_RF_VAR, check);
+-		if (check || Use_Rm_Rf)
++		// erofs has no mkfs in this recovery and is read-only by design, so
++		// wiping means clearing the superblock; Install Image can then write a
++		// new image (patch 0008 resizes the partition when needed)
++		if (New_File_System == "erofs")
++			wiped = Wipe_EROFS();
++		else if (check || Use_Rm_Rf)
+ 			wiped = Wipe_RMRF();
+ 		else if (New_File_System == "ext4")
+ 			wiped = Wipe_EXT4();
+@@ -2279,6 +2295,31 @@ void TWPartition::Check_FS_Type() {
+ 	}
+ }
+ 
++bool TWPartition::Wipe_EROFS() {
++	Find_Actual_Block_Device();
++	if (!Is_Present) {
++		LOGINFO("Block device not present, cannot wipe %s.\n", Display_Name.c_str());
++		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
++		return false;
++	}
++
++	// EROFS is a read-only filesystem and this recovery has no mkfs.erofs, so
++	// a filesystem cannot be recreated in place.  Zero the first 4 KiB (the
++	// superblock starts at offset 1024) so the partition is empty; a fresh
++	// image can be written with Install Image afterwards.
++	gui_msg(Msg("formatting_using=Formatting {1} using {2}...")(Display_Name)("zero fill"));
++	string Command = "dd if=/dev/zero of='" + Actual_Block_Device + "' bs=4096 count=1 conv=fsync";
++	LOGINFO("Wipe command: '%s'\n", Command.c_str());
++	if (TWFunc::Exec_Cmd(Command) != 0) {
++		gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
++		return false;
++	}
++
++	Current_File_System = "erofs";
++	gui_msg("done=Done.");
++	return true;
++}
++
+ bool TWPartition::Wipe_EXTFS(string File_System) {
+ 	if (!UnMount(true))
+ 		return false;
+@@ -3328,6 +3369,37 @@ bool TWPartition::Flash_Image(PartitionSettings *part_settings) {
  
  	LOGINFO("Image filename is: %s\n", Backup_FileName.c_str());
  
@@ -40,7 +104,7 @@ index 184cb16..e4eea85 100755
  	if (Backup_Method == BM_FILES) {
  		LOGERR("Cannot flash images to file systems\n");
  		return false;
-@@ -3367,8 +3398,7 @@ bool TWPartition::Flash_Sparse_Image(const string& Filename) {
+@@ -3392,8 +3464,7 @@ bool TWPartition::Flash_Sparse_Image(const string& Filename) {
  
  	Command = "simg2img '" + Filename + "' '" + Actual_Block_Device + "'";
  	LOGINFO("Flash command: '%s'\n", Command.c_str());
@@ -51,13 +115,78 @@ index 184cb16..e4eea85 100755
  
  bool TWPartition::Flash_Image_FI(const string& Filename, ProgressTracking *progress) {
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
-index 2766b4c..5d609b0 100755
+index 14a1f43..a4c7e4c 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
-@@ -3595,6 +3595,77 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
+@@ -3595,6 +3595,105 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
      return true;
  }
  
++// Replace the dm-linear mapping of a logical partition.  A non-null metadata
++// pointer is written to super first (the size changed); either way the new
++// mapping is created writable, because liblp otherwise applies the read-only
++// attribute Samsung puts on every logical partition and mkfs/dd would fail.
++static bool remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
++		const std::string& bare_partition_name, const std::string& partition_name,
++		uint32_t slot, const LpMetadata* metadata) {
++	// only replace a link this recovery made, never a by-name entry for a physical partition
++	std::string link = "/dev/block/bootdevice/by-name/" + bare_partition_name;
++	char target[PATH_MAX];
++	ssize_t len = readlink(link.c_str(), target, sizeof(target) - 1);
++	bool own_link = len < 0 ? errno == ENOENT : std::string(target, len) == twrpPart->Actual_Block_Device;
++
++	if (!DestroyLogicalPartition(partition_name)) {
++		LOGERR("Unable to unmap %s, it is still in use\n", partition_name.c_str());
++		return false;
++	}
++	bool updated = true;
++	if (metadata) {
++		// like fastbootd, only the slot in use: the other metadata slots of a
++		// non-A/B super hold stale tables
++		updated = android::fs_mgr::UpdatePartitionTable(super_device, *metadata, slot);
++		if (!updated)
++			LOGERR("Unable to write metadata to %s\n", super_device.c_str());
++	}
++
++	// maps the new table, or the old one again when it was not written
++	android::fs_mgr::CreateLogicalPartitionParams params;
++	params.block_device = super_device;
++	params.metadata_slot = slot;
++	params.partition_name = partition_name;
++	params.force_writable = true;
++	params.timeout_ms = std::chrono::seconds(10);
++	std::string path;
++	if (!android::fs_mgr::CreateLogicalPartition(params, &path)) {
++		LOGERR("Unable to map %s, reboot the recovery before using it\n", partition_name.c_str());
++		// the old dm node may be handed to another device
++		if (own_link)
++			unlink(link.c_str());
++		twrpPart->Set_Block_Device("");
++		return false;
++	}
++	twrpPart->Set_Block_Device(path);
++	if (own_link) {
++		unlink(link.c_str());
++		if (symlink(path.c_str(), link.c_str()) != 0)
++			LOGINFO("Unable to link %s to %s\n", link.c_str(), path.c_str());
++	}
++	LOGINFO("Mapped %s %s at %s\n", partition_name.c_str(),
++			metadata ? "with updated metadata" : "read-write", path.c_str());
++	return updated;
++}
++
++bool TWPartitionManager::Make_Super_Volume_Writable(TWPartition* twrpPart) {
++	std::string bare_partition_name = Get_Bare_Partition_Name(twrpPart->Get_Mount_Point());
++	std::string partition_name = bare_partition_name;
++	uint32_t slot = 0;
++#ifdef AB_OTA_UPDATER
++	partition_name += Get_Active_Slot_Suffix();
++	slot = android::fs_mgr::SlotNumberForSlotSuffix(Get_Active_Slot_Suffix());
++#endif
++	return remap_logical_partition(twrpPart, Get_Super_Partition(), bare_partition_name,
++			partition_name, slot, nullptr);
++}
++
 +bool TWPartitionManager::Resize_Super_Volume(TWPartition* twrpPart, uint64_t size) {
 +	std::string bare_partition_name = Get_Bare_Partition_Name(twrpPart->Get_Mount_Point());
 +	std::string partition_name = bare_partition_name;
@@ -88,59 +217,31 @@ index 2766b4c..5d609b0 100755
 +		LOGERR("Unable to build new metadata for %s\n", partition_name.c_str());
 +		return false;
 +	}
-+
-+	// only replace a link this recovery made, never a by-name entry for a physical partition
-+	std::string link = "/dev/block/bootdevice/by-name/" + bare_partition_name;
-+	char target[PATH_MAX];
-+	ssize_t len = readlink(link.c_str(), target, sizeof(target) - 1);
-+	bool own_link = len < 0 ? errno == ENOENT : std::string(target, len) == twrpPart->Actual_Block_Device;
-+
-+	if (!DestroyLogicalPartition(partition_name)) {
-+		LOGERR("Unable to unmap %s, it is still in use\n", partition_name.c_str());
-+		return false;
-+	}
-+	// like fastbootd, only the slot in use: the other metadata slots of a non-A/B super hold stale tables
-+	bool updated = android::fs_mgr::UpdatePartitionTable(super_device, *metadata, slot);
-+	if (!updated)
-+		LOGERR("Unable to write metadata to %s\n", super_device.c_str());
-+
-+	// maps the new table, or the old one again when it was not written
-+	android::fs_mgr::CreateLogicalPartitionParams params;
-+	params.block_device = super_device;
-+	params.metadata_slot = slot;
-+	params.partition_name = partition_name;
-+	params.force_writable = true;
-+	params.timeout_ms = std::chrono::seconds(10);
-+	std::string path;
-+	if (!android::fs_mgr::CreateLogicalPartition(params, &path)) {
-+		LOGERR("Unable to map %s, reboot the recovery before using it\n", partition_name.c_str());
-+		// the old dm node may be handed to another device
-+		if (own_link)
-+			unlink(link.c_str());
-+		twrpPart->Set_Block_Device("");
-+		return false;
-+	}
-+	twrpPart->Set_Block_Device(path);
-+	if (own_link) {
-+		unlink(link.c_str());
-+		if (symlink(path.c_str(), link.c_str()) != 0)
-+			LOGINFO("Unable to link %s to %s\n", link.c_str(), path.c_str());
-+	}
-+	return updated;
++	return remap_logical_partition(twrpPart, super_device, bare_partition_name,
++			partition_name, slot, metadata.get());
 +}
 +
  bool TWPartitionManager::Prepare_All_Super_Volumes() {
  	bool status = true;
  	std::vector<TWPartition*>::iterator iter;
 diff --git a/partitions.hpp b/partitions.hpp
-index 843dfe5..2267654 100755
+index 843dfe5..b3cfc18 100755
 --- a/partitions.hpp
 +++ b/partitions.hpp
-@@ -399,6 +399,7 @@ public:
+@@ -204,6 +204,7 @@ private:
+ 	unsigned long long Get_Size_Via_du(string Path, bool Display_Error);      // Uses du to get sizes
+ 	bool Wipe_EXTFS(string File_System);                                      // Create an ext2/ext3/ext4 filesystem
+ 	bool Wipe_EXT4();                                                         // Formats using ext4, uses make_ext4fs when present
++	bool Wipe_EROFS();                                                        // Clears an erofs filesystem (no mkfs.erofs in recovery)
+ 	bool Wipe_FAT();                                                          // Formats as FAT if mkfs.fat exits otherwise rm -rf wipe
+ 	bool Wipe_EXFAT();                                                        // Formats as EXFAT
+ 	bool Wipe_MTD();                                                          // Formats as yaffs2 for MTD memory types
+@@ -399,6 +400,8 @@ public:
  	void Add_Partition(TWPartition* Part);                                    // Adds a new partition to the Partitions vector
  	std::string Get_Bare_Partition_Name(std::string Mount_Point);
      bool Prepare_Super_Volume(TWPartition* twrpPart);					  	  // Prepare logical super partition volume for mounting
-+	bool Resize_Super_Volume(TWPartition* twrpPart, uint64_t size);         // Resize a logical partition to size and map it writable
++	bool Make_Super_Volume_Writable(TWPartition* twrpPart);                   // Remap a logical partition writable without resizing it
++	bool Resize_Super_Volume(TWPartition* twrpPart, uint64_t size);           // Resize a logical partition to size and map it writable
  	std::string Get_Super_Partition();										  // Get Super Partition block device path
  	void Setup_Super_Devices();												  // Setup logical dm devices on super partition
  	bool Get_Super_Status();												  // Return whether device has a super partition

@@ -1,0 +1,57 @@
+diff --git a/data.cpp b/data.cpp
+index 2d4c379..4a38c59 100644
+--- a/data.cpp
++++ b/data.cpp
+@@ -292,9 +292,16 @@ int DataManager::SaveValues()
+ 	mPersist.SetFile(mBackingFile);
+ 	mPersist.SetFileVersion(FILE_VERSION);
+ 	pthread_mutex_lock(&m_valuesLock);
+-	mPersist.SaveValues();
++	int save_ret = mPersist.SaveValues();
+ 	pthread_mutex_unlock(&m_valuesLock);
+ 
++	if (save_ret != 0) {
++		// InfoManager::SaveValues only fails when fopen() fails, so keep the
++		// "saved" message for real writes; otherwise the missing settings look
++		// like a successful save in the recovery log.
++		LOGERR("Unable to save settings file values to '%s'\n", mBackingFile.c_str());
++		return -1;
++	}
+ 	tw_set_default_metadata(mBackingFile.c_str());
+ 	LOGINFO("Saved settings file values to '%s'\n", mBackingFile.c_str());
+ #endif // ifdef TW_OEM_BUILD
+@@ -1180,7 +1187,9 @@ void DataManager::ReadSettingsFile(void)
+ 			gui_msg(Msg(msg::kError, "unable_to_mount=Unable to mount {1}")(settings_file));
+ 	}
+ 
+-	mkdir(mkdir_path, 0777);
++	// /cache/recovery may not exist on the very first boot, so create every
++	// missing parent, not just the last path element
++	TWFunc::Create_Dir_Recursive(mkdir_path, 0777);
+ 
+ 	LOGINFO("Attempt to load settings from settings file...\n");
+ 	LoadValues(settings_file);
+@@ -1198,7 +1207,22 @@ string DataManager::GetCurrentStoragePath(void)
+ 
+ string DataManager::GetSettingsStoragePath(void)
+ {
+-	return GetStrValue("tw_settings_path");
++	string path = GetStrValue("tw_settings_path");
++	// tw_settings_path is only ever set once /data has been decrypted
++	// (Post_Decrypt, Decrypt_Adopted_Storage or Setup_Data_Media).  On the
++	// a14m /data can never be decrypted (see README section 9), so the value
++	// stays empty and TWRP writes .twrps to the ramdisk under the relative
++	// name "TWRP.twrps" and loses it on every reboot.
++	//
++	// Fall back to /cache/recovery, the same place TWRP already writes
++	// .version and last_log.  Do NOT use /metadata: TWRP (and vold's
++	// fscrypt_mount_metadata_encrypted) mount it read-only for the key
++	// directory, so creating /metadata/recovery and writing .twrps silently
++	// fails with EROFS.  /cache is a real ext4 partition, is mounted
++	// read-write during boot, and only disappears when cache is wiped.
++	if (path.empty())
++		path = "/cache/recovery/";
++	return path;
+ }
+ 
+ void DataManager::Vibrate(const string& varName)

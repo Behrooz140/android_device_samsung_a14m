@@ -21,8 +21,10 @@
 # wipeingui is needed as well: TWRP hard-codes logical partitions as not
 # wipable ("Is_Super ? false : true") while parsing the device column, and
 # only later applies flags=, so this is the one way to list them in Advanced
-# Wipe. Wiping the filesystem itself only works when the super metadata is
-# writable; to restore a partition use Install Image -> <partition> instead.
+# Wipe. Patch 0008 remaps the dm node writable before wiping; because all of
+# these partitions are erofs (and the recovery has no mkfs.erofs), Wipe clears
+# the erofs superblock, after which Install Image can write a new image.
+# "Repair or Change File System" can reformat them as ext4/f2fs.
 #
 
 # ---------------------------------------------------------------------------

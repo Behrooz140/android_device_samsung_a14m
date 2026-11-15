@@ -28,15 +28,15 @@ Repository: `https://github.com/Behrooz140/android_device_samsung_a14m`
 | MicroSD read/write | ✅ | `/external_sd` (exFAT/vfat) |
 | Internal storage `/sdcard` | ⚠️ | Only when `/data` is mounted |
 | `super` logical partitions | ✅ | Read-only mount + `flashimg=1` |
-| `Install Image` to `system`/`vendor`/… | ✅ | Patch 0008 |
+| `Install Image` to `system`/`vendor`/… | ✅ | Patch 0008: resize + writable remap + raw/sparse write |
 | Logical partitions visible in Advanced Wipe | ✅ | Patch 0012 + `wipeingui` |
-| Wiping the filesystem on `super` | ⚠️ | Samsung's `super` metadata is read-only |
+| Wiping the filesystem on `super` | ✅ | Patch 0008: remap writable, then clear the erofs superblock (section 8.1) |
 | Backup of logical partitions | ❌ (intentional) | TWRP disables backup for `super`; use the stock image |
 | `Reboot → Recovery` | ✅ | Patch 0013 + writing the BCB directly |
 | `Reboot → Fastboot` | ✅ | Patches 0014 + 0018: writing a `--fastboot` BCB and restarting into recovery |
 | Displayed temperature | ⚠️ | Patch 0016; the recovery kernel has no CPU zone, so the battery temperature is shown |
 | Vibration (haptics) | ✅ | Patch 0017: driving `brightness` directly and resetting the trigger |
-| Settings survive a reboot | ✅ | Patch 0020: `.twrps` is stored on `/metadata/recovery/` (section 9) |
+| Settings survive a reboot | ✅ | Patch 0020: `.twrps` is stored on `/cache/recovery/` (section 9) |
 | Wiping Dalvik / ART Cache | ⚠️ | Patch 0015; `/cache` is wiped, `dalvik-cache` inside the encrypted `/data` is not accessible |
 | `Reboot → System` | ✅ | |
 | fastbootd / repacktools / lptools | ✅ | |
@@ -332,18 +332,30 @@ flags=display=<name>;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
   the `dm-*` devices are read-only, and mounting without `MS_RDONLY` fails with
   `EACCES (Permission denied)`.
 - **`flashimg=1`** allows a raw image (`system.img`, `vendor.img`, …) to be
-  written via `Install Image` directly to that same logical partition;
-  patch 0008 checks the image size (plain or sparse) and writes it to the
-  corresponding `dm`.
+  written via `Install Image` directly to that same logical partition.
+  Patch 0008 reads the real size (plain or sparse), resizes the partition in
+  the `super` metadata, remaps it writable (`force_writable`) and only then
+  writes the image. If the image does not fit in the free extents of `super`,
+  the flash fails with "Size of image is larger than target device".
 - **`wipeingui`** makes the partition appear in **Advanced Wipe**.
   While parsing the fstab, TWRP marks every `Is_Super` partition as "not wipeable"
   and applies the flags later; patch 0012 changes this behavior only when
   the fstab itself explicitly asks for `wipeingui`
   (`Wipe_Available_in_GUI`). Backup remains disabled for these partitions
   (`Set_Can_Be_Backed_Up(false)`) and they do not appear in the Backup menu.
-- **Wiping the filesystem** on `super` only succeeds when the `super`
-  metadata is writable; on this phone it is not. To restore a partition,
-  use `Install Image`, not Wipe.
+- **Wiping a logical partition** works, with a caveat: before wiping, patch 0008
+  unmounts the `dm` node and remaps it writable, because Samsung's read-only
+  attribute otherwise makes every write fail with `EACCES`. All eight logical
+  partitions are **erofs** and this recovery has no `mkfs.erofs`, so a plain
+  Wipe clears the 4 KiB erofs superblock instead of recreating a filesystem:
+  the partition becomes empty and a new image can be written with
+  `Install Image`. To put an ext4/f2fs filesystem on it instead, use
+  **Wipe → Advanced Wipe → Repair or Change File System → Change File System**
+  (the writable remap is applied there too). Wiping does **not** free space in
+  `super`; only the resize step in `Install Image` reuses the freed extents.
+- The `super` metadata itself *is* writable (it is a normal partition); the
+  read-only attribute (`liblp attr=0x1`) is what makes the `dm` devices
+  read-only, and liblp can change it when a partition is remapped.
 - The `/super` partition itself is also added by TWRP as a separate entry
   (patch 0002 reads its size from the block device) and is available for
   dd/raw backup.
@@ -358,7 +370,7 @@ a recovery BCB doesn't get restored by mistake.
 ### 8.3 Advanced Wipe and sensitive partitions
 
 - Wipeable: `/data`, `/cache`, `/metadata`, `/external_sd` and the
-  logical partitions (with the limitation from section 8.1).
+  logical partitions (see the wipe caveat in section 8.1).
 - The wipe option is **never** enabled on `efs`, `persist`, `nvdata`;
   these hold the IMEI, radio calibration and sensor data and cannot be
   recovered once wiped. These partitions are in the fstab only for backup and
@@ -430,10 +442,12 @@ work, and the `super` logical partitions **are** visible — `getvar all` lists
 and `system_dlkm` with `is-logical:…:yes`, plus `partition-size:super:…`,
 `is-userspace: yes` and `slot-count: 0`.
 
-Only **flashing** them is limited: the `super` metadata marks these partitions
-read-only (the same flag that forces `fsflags=ro` in `recovery.fstab`), so
-`fastboot flash` cannot be relied on. To flash them, use TWRP's own
-`Install Image`.
+**Flashing** and **wiping** them is limited inside fastbootd: the `super`
+metadata marks these partitions read-only (the same flag that forces
+`fsflags=ro` in `recovery.fstab`), and fastbootd does not remap them writable
+here. `fastboot flash` therefore cannot be relied on; use TWRP's own
+`Install Image` (and Advanced Wipe) instead, which do the writable remap
+through liblp (patch 0008, section 8.1).
 
 **CPU temperature** (patch 0016): by default TWRP reads `/sys/class/thermal/thermal_zone0/temp`;
 on this phone zone0 is `mtk-master-charger` and always returns 0.
@@ -564,8 +578,10 @@ Consequences:
 - Backup no longer preselects `/data` (patch 0019), so a backup of the other
   partitions is not aborted by the `/data` mount failure (issue #5).
 - TWRP's own settings (timezone, haptics, screen timeout, TWRP folder) are
-  written to `/metadata/recovery/TWRP.twrps` instead of `/data/recovery/`
-  (patch 0020), because `/data` is never decrypted here.
+  written to `/cache/recovery/.twrps` instead of `/data/recovery/`
+  (patch 0020), because `/data` is never decrypted here. `/cache` is a real
+  ext4 partition and is mounted read-write during boot; `/metadata` cannot be
+  used because it is mounted read-only for the metadata-encryption key.
 - If the data doesn't matter, use `Format Data` so that `/data` becomes usable
   with a fresh key.
 - The only technically possible route to decryption is running TWRP from the `boot` partition on
@@ -590,7 +606,8 @@ Consequences:
 | Dalvik isn't wiped, or "Failed to wipe dalvik" | `/data` doesn't mount | Patch 0015; `dalvik-cache` inside the encrypted `/data` is not accessible without decryption |
 | `/data` doesn't mount | Metadata encryption | This is normal; section 9 |
 | Backup fails on `/data` and deletes the images already written | `/data` was preselected | Untick `Data`, or use a build with patch 0019 (issue #5) |
-| TWRP settings (timezone, haptics, …) reset on every reboot | `.twrps` was written to the ramdisk because `/data` cannot be decrypted | Use a build with patch 0020; the settings are now stored on `/metadata` |
+| TWRP settings (timezone, haptics, …) reset on every reboot | `.twrps` could not be written: `/data` is never decrypted and `/metadata` is mounted read-only | Use a build with patch 0020; the settings are stored in `/cache/recovery/.twrps` |
+| "Unable to wipe System" / no effect when wiping `system` | Build before patch 0008's writable remap; erofs has no `mkfs` | Flash the latest build; see section 8.1 for what "wipe" does on `super` |
 | Zips report the wrong build or fingerprint | The ramdisk identity was hard-coded | Section 12 / issue #4; TWRP now reads it from the system |
 | `/sec_efs` is missing | `init.recovery.samsung.rc` was never imported | Section 12 / issue #2 |
 | Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
@@ -614,7 +631,7 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 | `0003-data-on-decrypted-mapper` | Mounting `/data` on `/dev/block/mapper/userdata` after decryption |
 | `0005-format-data-raw-partition` | Releasing `dm-default-key` before formatting `/data` |
 | `0007-storage-path-after-late-data-mount` | Fixing `/sdcard` when `/data` is mounted late |
-| `0008-flash-image-to-logical-partitions` | Writing raw/sparse images to logical partitions |
+| `0008-flash-image-to-logical-partitions` | Resizing and remapping logical partitions writable, raw/sparse image flash, erofs wipe |
 | `0009-wait-for-decrypt-during-splash` | Waiting for `decrypt.sh` during the splash and setting the encryption state |
 | `0010-fscrypt-policies-through-decrypt-refs` | Mapping fscrypt v2 policies in backup/restore |
 | `0011-remount-data-under-stale-sdcard-bind` | Clearing the stale `/sdcard` bind on `/data` |
@@ -626,13 +643,39 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 | `0017-enable-leds-vibrator-trigger` | Driving the vibrator with `brightness` only and resetting the trigger |
 | `0018-bootloader-message-misc-fallback` | BCB read/write fallback to `/dev/block/by-name/misc` |
 | `0019-do-not-preselect-data` | Backup no longer preselects `/data` on dynamic-partition devices |
-| `0020-persist-settings-on-metadata` | Storing `.twrps` on `/metadata/recovery/` when `/data` cannot be decrypted |
+| `0020-persist-settings-in-cache` | Storing `.twrps` in `/cache/recovery/` when `/data` cannot be decrypted |
 
 ---
 
 ## 12) Changes
 
 ### Unreleased (next build)
+
+Two fixes found while testing build 25 on the phone (`twrp-diag` logs):
+
+- **TWRP settings still reset on reboot.** Patch 0020 stored `.twrps` on
+  `/metadata/recovery/`, but TWRP and vold mount `/metadata` read-only for the
+  metadata-encryption key directory (`/proc/mounts` shows `md_udc /metadata ext4 ro`).
+  `mkdir` failed with `EROFS`, `fopen` failed too, and `InfoManager` returned -1
+  without TWRP noticing (the log still said "Saved settings file values").
+  The settings now go to `/cache/recovery/.twrps`: `/cache` is a real ext4
+  partition, is mounted read-write during boot (TWRP already writes
+  `/cache/recovery/.version` there), and survives a reboot. Patch 0020 also
+  logs a real error when the save fails, instead of the misleading "Saved"
+  message.
+- **Wiping/flashing `super` partitions failed.** Two separate causes:
+  Samsung's `super` metadata marks every logical partition read-only
+  (`liblp attr=0x1`), so the `dm` node is read-only and `mkfs`/`dd` fail with
+  `EACCES`; and all eight partitions are **erofs**, which TWRP cannot format
+  (there is no `mkfs.erofs` in the recovery ramdisk). Patch 0008 now
+  unmounts the `dm` node and remaps it writable through liblp before a wipe,
+  and adds an erofs wipe path that clears the superblock so the partition is
+  empty and ready for `Install Image`. Changing the filesystem to
+  ext4/f2fs (Advanced Wipe → Repair or Change File System) works as well.
+  `Install Image` already used the same writable remap; it now shares one
+  helper with the wipe path.
+
+### Build 25 — `c5d3cee`
 
 Fixes for the four issues reported by Doorriiaann (GitHub issues #2–#5):
 
@@ -660,10 +703,9 @@ TWRP settings no longer reset on every reboot:
 - **Settings were lost because `/data` cannot be decrypted.** TWRP only sets
   `tw_settings_path` after a successful `/data` decrypt (`/data/recovery/`), so
   on this phone the value stayed empty and `.twrps` was written to the ramdisk
-  under the relative name `TWRP.twrps` and disappeared on reboot. Patch 0020
-  falls back to `/metadata/recovery/` — an unencrypted ext4 partition that is
-  always present, is mounted by TWRP itself and survives a reboot. The timezone,
-  haptics, screen timeout and the chosen TWRP folder now persist.
+  under the relative name `TWRP.twrps` and disappeared on reboot. Build 25
+  added a fallback to `/metadata/recovery/` (superseded in the next build:
+  `/metadata` is read-only, so the file still was not written).
 
 ### Build 23 — `dabe5f4`
 
