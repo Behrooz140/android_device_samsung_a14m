@@ -9,6 +9,10 @@
 #     twrp_a14m.tar.md5   - Odin-flashable package (AP slot)
 #     MD5SUMS.txt / SHA256SUMS.txt
 #
+# Every successful build is also published as a GitHub Release:
+#     - a pushed v* tag keeps its own tag
+#     - otherwise the build is published as build-<run number> and marked latest
+#
 name: Build TWRP (a14m)
 
 on:
@@ -266,11 +270,22 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Publish GitHub release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v') && success()
+      - name: Publish GitHub release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
+          # Every successful build becomes a release. A pushed v* tag keeps its
+          # own tag; a workflow_dispatch build is published as build-<run>.
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('TWRP a14m {0}', github.ref_name) || format('TWRP a14m — build {0}', github.run_number) }}
+          body: |
+            Automated TWRP build for Samsung Galaxy A14 4G (SM-A145P / a14m).
+
+            - Workflow run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - Commit: `${{ github.sha }}`
+            - Variant: `${{ env.VARIANT }}` · target: `${{ env.BUILD_TARGET }}`
           files: ${{ github.workspace }}/artifacts/*
+          make_latest: true
           generate_release_notes: true
 
       - name: Write job summary

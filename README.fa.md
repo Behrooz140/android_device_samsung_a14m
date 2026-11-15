@@ -196,8 +196,9 @@ device/samsung/a14m/
 
 - کش `ccache` عمداً استفاده نمی‌شود؛ در رانر GitHub روی
   `~/.ccache/tmp` خطای `Read-only file system` می‌داد.
-- اگر تگ `v*` پوش کنید، علاوه بر Artifact یک **GitHub Release** هم ساخته
-  می‌شود:
+- هر بیلد موفق، علاوه بر Artifact، به‌صورت یک **GitHub Release** منتشر می‌شود:
+  بیلدهای `workflow_dispatch` با تگ `build-<شمارهٔ اجرا>` (و به‌عنوان latest) و
+  تگ‌های `v*` با تگ خودشان:
   ```bash
   git tag v1.0.0 && git push origin v1.0.0
   ```

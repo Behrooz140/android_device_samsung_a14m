@@ -196,8 +196,9 @@ Notes:
 
 - `ccache` is intentionally not used; on the GitHub runner it produced
   a `Read-only file system` error on `~/.ccache/tmp`.
-- If you push a `v*` tag, a **GitHub Release** is created as well, in addition
-  to the Artifact:
+- Every successful build is published as a **GitHub Release** in addition to the
+  Artifact: a `workflow_dispatch` build as `build-<run number>` (marked latest),
+  and a pushed `v*` tag under its own tag:
   ```bash
   git tag v1.0.0 && git push origin v1.0.0
   ```
