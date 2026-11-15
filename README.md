@@ -36,6 +36,7 @@ Repository: `https://github.com/Behrooz140/android_device_samsung_a14m`
 | `Reboot → Fastboot` | ✅ | Patches 0014 + 0018: writing a `--fastboot` BCB and restarting into recovery |
 | Displayed temperature | ⚠️ | Patch 0016; the recovery kernel has no CPU zone, so the battery temperature is shown |
 | Vibration (haptics) | ✅ | Patch 0017: driving `brightness` directly and resetting the trigger |
+| Settings survive a reboot | ✅ | Patch 0020: `.twrps` is stored on `/metadata/recovery/` (section 9) |
 | Wiping Dalvik / ART Cache | ⚠️ | Patch 0015; `/cache` is wiped, `dalvik-cache` inside the encrypted `/data` is not accessible |
 | `Reboot → System` | ✅ | |
 | fastbootd / repacktools / lptools | ✅ | |
@@ -130,7 +131,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← defines langsdorff_decrypt and gk_verify
 │   ├── langsdorff_decrypt.cpp  ← unlocks FBE v2 + metadata with KeyMint
 │   └── gk_verify.cpp           ← password verification with gatekeeper HIDL 1.0
-├── patches/                    ← TWRP source patches (0001 to 0018)
+├── patches/                    ← TWRP source patches (0001 to 0020)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB, TEE, decrypt service, diag
 │   ├── init.recovery.samsung.rc← efs preparation
@@ -562,6 +563,9 @@ Consequences:
 - Use **MicroSD** (`/external_sd`) or USB-OTG for backups.
 - Backup no longer preselects `/data` (patch 0019), so a backup of the other
   partitions is not aborted by the `/data` mount failure (issue #5).
+- TWRP's own settings (timezone, haptics, screen timeout, TWRP folder) are
+  written to `/metadata/recovery/TWRP.twrps` instead of `/data/recovery/`
+  (patch 0020), because `/data` is never decrypted here.
 - If the data doesn't matter, use `Format Data` so that `/data` becomes usable
   with a fresh key.
 - The only technically possible route to decryption is running TWRP from the `boot` partition on
@@ -586,6 +590,7 @@ Consequences:
 | Dalvik isn't wiped, or "Failed to wipe dalvik" | `/data` doesn't mount | Patch 0015; `dalvik-cache` inside the encrypted `/data` is not accessible without decryption |
 | `/data` doesn't mount | Metadata encryption | This is normal; section 9 |
 | Backup fails on `/data` and deletes the images already written | `/data` was preselected | Untick `Data`, or use a build with patch 0019 (issue #5) |
+| TWRP settings (timezone, haptics, …) reset on every reboot | `.twrps` was written to the ramdisk because `/data` cannot be decrypted | Use a build with patch 0020; the settings are now stored on `/metadata` |
 | Zips report the wrong build or fingerprint | The ramdisk identity was hard-coded | Section 12 / issue #4; TWRP now reads it from the system |
 | `/sec_efs` is missing | `init.recovery.samsung.rc` was never imported | Section 12 / issue #2 |
 | Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
@@ -621,6 +626,7 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 | `0017-enable-leds-vibrator-trigger` | Driving the vibrator with `brightness` only and resetting the trigger |
 | `0018-bootloader-message-misc-fallback` | BCB read/write fallback to `/dev/block/by-name/misc` |
 | `0019-do-not-preselect-data` | Backup no longer preselects `/data` on dynamic-partition devices |
+| `0020-persist-settings-on-metadata` | Storing `.twrps` on `/metadata/recovery/` when `/data` cannot be decrypted |
 
 ---
 
@@ -648,6 +654,16 @@ Fixes for the four issues reported by Doorriiaann (GitHub issues #2–#5):
   dynamic-partition devices (`tw_backup_list` now defaults to empty); `/data`
   keeps `backup=1` in the fstab, so it can still be backed up on unencrypted
   firmware.
+
+TWRP settings no longer reset on every reboot:
+
+- **Settings were lost because `/data` cannot be decrypted.** TWRP only sets
+  `tw_settings_path` after a successful `/data` decrypt (`/data/recovery/`), so
+  on this phone the value stayed empty and `.twrps` was written to the ramdisk
+  under the relative name `TWRP.twrps` and disappeared on reboot. Patch 0020
+  falls back to `/metadata/recovery/` — an unencrypted ext4 partition that is
+  always present, is mounted by TWRP itself and survives a reboot. The timezone,
+  haptics, screen timeout and the chosen TWRP folder now persist.
 
 ### Build 23 — `dabe5f4`
 

@@ -36,6 +36,7 @@
 | `Reboot → Fastboot` | ✅ | پچ ۰۰۱۴ + ۰۰۱۸: نوشتن BCB `--fastboot` و ریستارت به ریکاوری |
 | دمای نمایش‌داده‌شده | ⚠️ | پچ ۰۰۱۶؛ کرنل ریکاوری زون CPU ندارد، دمای باتری نمایش داده می‌شود |
 | ویبره (هپتیک) | ✅ | پچ ۰۰۱۷: درایو مستقیم `brightness` و ریست تریگر |
+| ماندن تنظیمات بعد از ریبوت | ✅ | پچ ۰۰۲۰: فایل `.twrps` روی `/metadata/recovery/` ذخیره می‌شود (بخش ۹) |
 | پاک‌کردن Dalvik / ART Cache | ⚠️ | پچ ۰۰۱۵؛ `/cache` پاک می‌شود، `dalvik-cache` داخل `/data` رمزنگاری‌شده در دسترس نیست |
 | `Reboot → System` | ✅ | |
 | fastbootd / repacktools / lptools | ✅ | |
@@ -130,7 +131,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← تعریف langsdorff_decrypt و gk_verify
 │   ├── langsdorff_decrypt.cpp  ← بازکردن FBE v2 + متادیتا با KeyMint
 │   └── gk_verify.cpp           ← تأیید رمز با gatekeeper هیدل ۱.۰
-├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۱۸)
+├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۲۰)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB، TEE، سرویس decrypt، diag
 │   ├── init.recovery.samsung.rc← آماده‌سازی efs
@@ -562,6 +563,9 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 - برای بکاپ از **MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید.
 - بکاپ دیگر `/data` را از پیش انتخاب نمی‌کند (پچ ۰۰۱۹)، پس بکاپ بقیهٔ
   پارتیشن‌ها با شکست mount شدن `/data` خراب نمی‌شود (ایشو #۵).
+- تنظیمات خود TWRP (منطقهٔ زمانی، هپتیک، زمان خاموشی صفحه، پوشهٔ TWRP) در
+  `/metadata/recovery/TWRP.twrps` نوشته می‌شوند نه `/data/recovery/`
+  (پچ ۰۰۲۰)، چون `/data` اینجا هیچ‌وقت رمزگشایی نمی‌شود.
 - اگر داده‌ها مهم نیستند، `Format Data` بزنید تا `/data` با کلید تازه
   قابل استفاده شود.
 - تنها مسیر فنی ممکن برای رمزگشایی، اجرای TWRP از پارتیشن `boot` در
@@ -586,6 +590,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | Dalvik پاک نمی‌شود یا «Failed to wipe dalvik» | `/data` مانت نمی‌شود | پچ ۰۰۱۵؛ `dalvik-cache` داخل `/data` رمزنگاری‌شده بدون رمزگشایی در دسترس نیست |
 | `/data` مانت نمی‌شود | رمزنگاری متادیتا | طبیعی است؛ بخش ۹ |
 | بکاپ روی `/data` شکست می‌خورد و تصاویر نوشته‌شده را پاک می‌کند | `/data` از پیش انتخاب شده بود | تیک `Data` را بردارید، یا از بیلدی با پچ ۰۰۱۹ استفاده کنید (ایشو #۵) |
+| تنظیمات TWRP (منطقهٔ زمانی، هپتیک، …) هر ریبوت ریست می‌شود | فایل `.twrps` روی رم‌دیسک نوشته می‌شد چون `/data` رمزگشایی نمی‌شود | از بیلدی با پچ ۰۰۲۰ استفاده کنید؛ تنظیمات حالا روی `/metadata` ذخیره می‌شوند |
 | زیپ‌ها بیلد/اثر انگشت اشتباه می‌بینند | شناسهٔ رم‌دیسک هارد‌کد شده بود | بخش ۱۲ / ایشو #۴؛ حالا TWRP آن را از سیستم می‌خواند |
 | `/sec_efs` وجود ندارد | `init.recovery.samsung.rc` هیچ‌وقت import نمی‌شد | بخش ۱۲ / ایشو #۲ |
 | پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
@@ -621,6 +626,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | `0017-enable-leds-vibrator-trigger` | درایو ویبره فقط با `brightness` و ریست تریگر |
 | `0018-bootloader-message-misc-fallback` | fallback خواندن/نوشتن BCB به `/dev/block/by-name/misc` |
 | `0019-do-not-preselect-data` | بکاپ دیگر `/data` را در دستگاه‌های dynamic partition از پیش انتخاب نمی‌کند |
+| `0020-persist-settings-on-metadata` | ذخیرهٔ `.twrps` روی `/metadata/recovery/` وقتی `/data` رمزگشایی نمی‌شود |
 
 ---
 
@@ -650,6 +656,17 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
   دستگاه‌های dynamic partition می‌گیرد (`tw_backup_list` حالا خالی است)؛
   `/data` همچنان `backup=1` را در fstab دارد تا روی فریمور
   رمزنگاری‌نشده قابل بکاپ باشد.
+
+تنظیمات TWRP دیگر با هر ریبوت ریست نمی‌شود:
+
+- **علت گم‌شدن تنظیمات این بود که `/data` رمزگشایی نمی‌شود.** TWRP مقدار
+  `tw_settings_path` را فقط بعد از رمزگشایی موفق `/data` تنظیم می‌کند
+  (`/data/recovery/`)؛ پس روی این گوشی مقدارش خالی می‌ماند و فایل `.twrps`
+  با نام نسبی `TWRP.twrps` روی رم‌دیسک نوشته و در ریبوت بعدی گم می‌شد.
+  پچ ۰۰۲۰ به `/metadata/recovery/` برمی‌گردد — یک پارتیشن ext4
+  رمزنگاری‌نشده که همیشه موجود است، خودِ TWRP آن را مانت می‌کند و بعد از
+  ریبوت باقی می‌ماند. حالا منطقهٔ زمانی، هپتیک، زمان خاموشی صفحه و پوشهٔ
+  انتخاب‌شدهٔ TWRP ماندگار می‌شوند.
 
 ### بیلد ۲۳ — `dabe5f4`
 

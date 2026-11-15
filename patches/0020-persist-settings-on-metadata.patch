@@ -1,0 +1,35 @@
+diff --git a/data.cpp b/data.cpp
+index 0078524..7b13b37 100644
+--- a/data.cpp
++++ b/data.cpp
+@@ -1125,7 +1125,9 @@ void DataManager::ReadSettingsFile(void)
+ 			gui_msg(Msg(msg::kError, "unable_to_mount=Unable to mount {1}")(settings_file));
+ 	}
+ 
+-	mkdir(mkdir_path, 0777);
++	// the settings folder may be nested (e.g. /metadata/recovery/TWRP), so
++	// create every missing parent, not just the last path element
++	TWFunc::Create_Dir_Recursive(mkdir_path, 0777);
+ 
+ 	LOGINFO("Attempt to load settings from settings file...\n");
+ 	LoadValues(settings_file);
+@@ -1143,7 +1145,18 @@ string DataManager::GetCurrentStoragePath(void)
+ 
+ string DataManager::GetSettingsStoragePath(void)
+ {
+-	return GetStrValue("tw_settings_path");
++	string path = GetStrValue("tw_settings_path");
++	// tw_settings_path is only ever set once /data has been decrypted
++	// (Post_Decrypt, Decrypt_Adopted_Storage or Setup_Data_Media).  On the
++	// a14m /data can never be decrypted (see README section 9), so the value
++	// stays empty and TWRP writes .twrps to the ramdisk under the relative
++	// name "TWRP.twrps" and loses it on every reboot.  Fall back to /metadata:
++	// an unencrypted ext4 partition that is always present, is mounted by
++	// TWRP itself and survives a reboot, so the settings and the TWRP folder
++	// choice persist.
++	if (path.empty())
++		path = "/metadata/recovery/";
++	return path;
+ }
+ 
+ void DataManager::Vibrate(const string& varName)
