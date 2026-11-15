@@ -353,6 +353,13 @@ flags=display=<name>;logical;backup=1;flashimg=1;fsflags=ro;wipeingui
   **Wipe → Advanced Wipe → Repair or Change File System → Change File System**
   (the writable remap is applied there too). Wiping does **not** free space in
   `super`; only the resize step in `Install Image` reuses the freed extents.
+- **After a wipe, mounting a logical partition fails (expected).** Once the
+  erofs superblock is cleared the partition has no filesystem, so TWRP can no
+  longer mount it and logs `Unable to mount '/system_root'`; the partition
+  still works with `Install Image`. Patch 0021 keeps that message in
+  `recovery.log` for `super` partitions instead of showing the red
+  "Failed to mount" GUI error, because the failure is expected and there is
+  nothing to fix from the GUI.
 - The `super` metadata itself *is* writable (it is a normal partition); the
   read-only attribute (`liblp attr=0x1`) is what makes the `dm` devices
   read-only, and liblp can change it when a partition is remapped.
@@ -525,7 +532,8 @@ Important files:
 - `diag.txt` — dmesg, loaded modules, input/i2c devices, mounts,
   TEE and decryption status, all thermal zones, vibrator status (active trigger and
   `brightness`, `duration`/`activate`/`state` for comparison), TWRP
-  haptics/temperature settings, and the first 128 bytes of `misc`/`boot_para`/`para`
+  haptics/temperature settings (including where `.twrps` was loaded from and
+  saved to), and the first 128 bytes of `misc`/`boot_para`/`para`
 - `recovery.log` — TWRP's own log
 - `last_kmsg.txt` — kernel log of the previous session (for investigating reboots)
 - `rebootrecovery.log` — evidence of the BCB write for Reboot→Recovery
@@ -608,6 +616,7 @@ Consequences:
 | Backup fails on `/data` and deletes the images already written | `/data` was preselected | Untick `Data`, or use a build with patch 0019 (issue #5) |
 | TWRP settings (timezone, haptics, …) reset on every reboot | `.twrps` could not be written: `/data` is never decrypted and `/metadata` is mounted read-only | Use a build with patch 0020; the settings are stored in `/cache/recovery/.twrps` |
 | "Unable to wipe System" / no effect when wiping `system` | Build before patch 0008's writable remap; erofs has no `mkfs` | Flash the latest build; see section 8.1 for what "wipe" does on `super` |
+| Red "Failed to mount '/system_root'" after wiping a `super` partition | The wipe cleared the erofs superblock, so the partition has no filesystem | Expected; flash an image, or use a build with patch 0021 to keep it in the log only (section 8.1) |
 | Zips report the wrong build or fingerprint | The ramdisk identity was hard-coded | Section 12 / issue #4; TWRP now reads it from the system |
 | `/sec_efs` is missing | `init.recovery.samsung.rc` was never imported | Section 12 / issue #2 |
 | Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
@@ -644,12 +653,36 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 | `0018-bootloader-message-misc-fallback` | BCB read/write fallback to `/dev/block/by-name/misc` |
 | `0019-do-not-preselect-data` | Backup no longer preselects `/data` on dynamic-partition devices |
 | `0020-persist-settings-in-cache` | Storing `.twrps` in `/cache/recovery/` when `/data` cannot be decrypted |
+| `0021-quiet-super-mount-failures` | Keeping the "failed to mount" message of a `super` partition in the log instead of a red GUI error |
 
 ---
 
 ## 12) Changes
 
 ### Unreleased (next build)
+
+Found while testing build 29 on the phone (the `twrp-diag` logs):
+
+- **Red "Failed to mount '/system_root'" after wiping a logical partition.**
+  The wipe intentionally clears the erofs superblock (section 8.1), so the
+  partition has no filesystem and every later mount fails with `EINVAL`.
+  Flashing and booting were unaffected, but TWRP showed the red `fail_mount`
+  GUI error at boot and after every "Updating partition details". Patch 0021
+  keeps that message in `recovery.log` for `Is_Super` partitions and no longer
+  raises a GUI error, since the failure is expected and there is nothing to fix
+  from the GUI. (`Install Image` still works.)
+- **The diagnostic log now shows where `.twrps` is stored.** `twrp-diag.sh`
+  reports `/cache/recovery/.twrps` (the patch-0020 location) and the
+  `InfoManager loading from …` / `InfoManager saving …` lines from
+  `recovery.log`, so settings persistence is verifiable from `diag.txt` alone.
+
+Build 29 itself confirmed the earlier fixes on the phone: the log shows
+`InfoManager saving '/cache/recovery/.twrps'` before the reboot and
+`InfoManager loading from '/cache/recovery/.twrps'` after it, and wiping
+`/system_root` finished with `operation_end - status=0`. `/data` remains
+undecryptable for the bootloader reason in section 9.
+
+### Build 29 — `4d14983`
 
 Two fixes found while testing build 25 on the phone (`twrp-diag` logs):
 

@@ -3,6 +3,9 @@ out/
 *.log
 .ccache/
 
+# Local diagnostic logs pulled from the phone (contain the device serial)
+twrp-diag/
+
 # Editor / OS noise
 .DS_Store
 *.swp

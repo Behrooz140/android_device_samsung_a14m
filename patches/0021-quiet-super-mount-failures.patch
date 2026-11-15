@@ -1,0 +1,16 @@
+diff --git a/partition.cpp b/partition.cpp
+--- a/partition.cpp
++++ b/partition.cpp
+@@ -1704,7 +1704,11 @@
+ 			}
+ 		} else {
+ #endif
+-			if (!Removable && Display_Error)
++			// Logical (super) partitions are read-only and may be intentionally
++			// left empty (e.g. after a wipe that clears the erofs superblock), so
++			// a failed mount is expected and not actionable.  Log it instead of
++			// raising a red GUI error.
++			if (!Removable && Display_Error && !Is_Super)
+ 				gui_msg(Msg(msg::kError, "fail_mount=Failed to mount '{1}' ({2})")(Mount_Point)(strerror(errno)));
+ 			else
+ 				LOGINFO("Unable to mount '%s'\n", Mount_Point.c_str());
