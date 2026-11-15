@@ -6,6 +6,9 @@ out/
 # Local diagnostic logs pulled from the phone (contain the device serial)
 twrp-diag/
 
+# Channel post drafts (local only)
+channel-build*.txt
+
 # Editor / OS noise
 .DS_Store
 *.swp
