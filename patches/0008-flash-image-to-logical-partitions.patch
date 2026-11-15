@@ -115,10 +115,10 @@ index 4cf1a23..433fc6e 100755
  
  bool TWPartition::Flash_Image_FI(const string& Filename, ProgressTracking *progress) {
 diff --git a/partitionmanager.cpp b/partitionmanager.cpp
-index 14a1f43..a4c7e4c 100755
+index 14a1f43..2864f4d 100755
 --- a/partitionmanager.cpp
 +++ b/partitionmanager.cpp
-@@ -3595,6 +3595,105 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
+@@ -3595,6 +3595,108 @@ bool TWPartitionManager::Prepare_Super_Volume(TWPartition* twrpPart) {
      return true;
  }
  
@@ -128,7 +128,7 @@ index 14a1f43..a4c7e4c 100755
 +// attribute Samsung puts on every logical partition and mkfs/dd would fail.
 +static bool remap_logical_partition(TWPartition* twrpPart, const std::string& super_device,
 +		const std::string& bare_partition_name, const std::string& partition_name,
-+		uint32_t slot, const LpMetadata* metadata) {
++		uint32_t slot, const android::fs_mgr::LpMetadata* metadata) {
 +	// only replace a link this recovery made, never a by-name entry for a physical partition
 +	std::string link = "/dev/block/bootdevice/by-name/" + bare_partition_name;
 +	char target[PATH_MAX];
@@ -161,10 +161,13 @@ index 14a1f43..a4c7e4c 100755
 +		// the old dm node may be handed to another device
 +		if (own_link)
 +			unlink(link.c_str());
-+		twrpPart->Set_Block_Device("");
++		// Set_Block_Device() is protected and this helper is not a member
++		twrpPart->Primary_Block_Device.clear();
++		twrpPart->Actual_Block_Device.clear();
 +		return false;
 +	}
-+	twrpPart->Set_Block_Device(path);
++	twrpPart->Primary_Block_Device = path;
++	twrpPart->Actual_Block_Device = path;
 +	if (own_link) {
 +		unlink(link.c_str());
 +		if (symlink(path.c_str(), link.c_str()) != 0)
