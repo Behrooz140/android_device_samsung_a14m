@@ -11,6 +11,12 @@ A dedicated device tree for building **TWRP 12.1** for the
 > **Advanced Wipe**, **Reboot → Recovery**, and persistent TWRP settings all
 > work correctly.
 >
+> **Prebuilts refreshed:** the tree now uses the stock `recovery.img` of
+> `A145PXXUEDZJ2` (security patch `2026-10-05`, kernel `6.6.118`). The results
+> above were verified with build 30 on the previous firmware
+> (`A145PXXSDDZH1`); a build from the refreshed tree still needs an on-device
+> test.
+>
 > The only remaining limitation is **`/data` decryption**, which is practically
 > impossible from the `recovery` partition (section 9). This limitation stems from
 > the bootloader's behavior, not from a bug in the tree.
@@ -60,9 +66,9 @@ phone in build 23 and re-confirmed in build 30 with the MicroSD logs
 | Chipset | MediaTek **MT6768** (Helio G80/G85) |
 | Architecture | arm64-v8a + armeabi-v7a (`cortex-a55`) |
 | Android | 15 / One UI 7 |
-| Stock build | `A145PXXSDDZH1` / `AP3A.240905.015.A2` |
-| Security patch | `2026-07-05` |
-| Fingerprint | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXSDDZH1:user/release-keys` |
+| Stock build | `A145PXXUEDZJ2` / `AP3A.240905.015.A2` |
+| Security patch | `2026-10-05` |
+| Fingerprint | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXUEDZJ2:user/release-keys` |
 | Recovery partition | `80,740,352` bytes (p40) |
 | `super` partition | `9,126,805,504` bytes (p46) |
 
@@ -80,9 +86,9 @@ therefore match the hardware of this exact build.
 
 | File | Size | MD5 | Notes |
 |---|---:|---|---|
-| `prebuilt/kernel` | 13,975,532 | `933b3c79216a10cd47b5c93ce16e10e9` | Stock `Image.gz` (gzip) |
-| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | MT6768 base DTB |
-| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO for the `A14M MEA OPEN 00` board |
+| `prebuilt/kernel` | 14,025,042 | `e4443063921c342441c04cb5ae4ee4ea` | Stock `Image.gz` (gzip), kernel `6.6.118-android15-8-abA145PXXUEDZJ2-4k` |
+| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | MT6768 base DTB (unchanged) |
+| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO for the `A14M MEA OPEN 00` board (unchanged) |
 | `prebuilt/modules/` | 25 MB | — | 198 `.ko` files + `modules.alias`, `modules.dep`, `modules.softdep`, `modules.load.recovery` |
 
 The output boot header must be identical to stock **byte for byte**:
@@ -95,14 +101,14 @@ ramdisk addr   : 0x47C80000
 tags    addr   : 0x4BC80000
 dtb     addr   : 0x4BC80000
 cmdline        : bootopt=64S3,32N2,64N2 loop.max_part=7
-board name     : SRPVJ12A013
-os version     : 15.0.0 / 2026-07
+board name     : SRPVJ12A014
+os version     : 15.0.0 / 2026-10
 ramdisk format : LZ4 (legacy frame)
 ```
 
 These values are set explicitly in `BoardConfig.mk`
-(`--board SRPVJ12A013`, `--dtb_offset 0x0bc08000`,
-`--os_version 15.0.0 --os_patch_level 2026-07`, `BOARD_RAMDISK_USE_LZ4`).
+(`--board SRPVJ12A014`, `--dtb_offset 0x0bc08000`,
+`--os_version 15.0.0 --os_patch_level 2026-10`, `BOARD_RAMDISK_USE_LZ4`).
 Changing any of them causes the bootloader to reject the image or the kernel
 to fail to find the ramdisk.
 
@@ -144,8 +150,10 @@ device/samsung/a14m/
 │   ├── system/etc/twrp.flags   ← optional entries (USB-OTG)
 │   └── system/tee/             ← Samsung TEE stack for the decryption attempt
 └── tools/
-    ├── extract_from_recovery.sh← re-extracts the prebuilts
-    └── stock_recovery.fstab    ← stock fstab for comparison
+    ├── extract_from_recovery.sh         ← re-extracts the prebuilts
+    ├── stock_init.recovery.mt6768.rc    ← stock init rc for comparison
+    ├── stock_init.recovery.samsung.rc   ← stock init rc for comparison
+    └── stock_recovery.fstab             ← stock fstab for comparison
 ```
 
 The `recovery/root/...` files are copied via `PRODUCT_COPY_FILES` to
@@ -661,6 +669,32 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 
 ## 12) Changes
 
+### Device tree refresh — `A145PXXUEDZJ2` (not built yet)
+
+The prebuilts were re-extracted from the stock recovery image that shipped with
+the October 2026 firmware (`A145PXXUEDZJ2`, security patch `2026-10-05`):
+
+- `prebuilt/kernel` is now `6.6.118-android15-8-abA145PXXUEDZJ2-4k` (was
+  `6.6.92-...-A145PXXSDDZH1`), 14,025,042 bytes, MD5
+  `e4443063921c342441c04cb5ae4ee4ea`.
+- all 198 modules were re-extracted from the new ramdisk and carry the new
+  vermagic; the module list itself is unchanged. `touch_common_o22.ko` was
+  re-patched with `tools/patch_touch_bootmode.py` as before.
+- `prebuilt/dtb.img` and `prebuilt/dtbo.img` are byte-identical to the previous
+  build (MD5 unchanged), and the stock `recovery.fstab` and
+  `init.recovery.samsung.rc` are unchanged.
+- the stock boot header now says board `SRPVJ12A014` (was `SRPVJ12A013`) and
+  OS patch level `2026-10` (was `2026-07`), so `BoardConfig.mk` was updated.
+- the fallback fingerprint/description in `twrp_a14m.mk` now uses
+  `A145PXXUEDZJ2`.
+- `tools/extract_from_recovery.sh` no longer overwrites the customized
+  `recovery/root/init.recovery*.rc`; it saves the stock copies as
+  `tools/stock_init.recovery*.rc` for diffing/merging.
+
+No image has been built from this refreshed tree yet. Flash it and re-check
+boot, display, touch, storage and the `/data` decryption attempt before calling
+the update tested.
+
 ### Build 30 — `62856e9`
 
 Found while testing build 29 on the phone (the `twrp-diag` logs):
@@ -841,9 +875,14 @@ cd device/samsung/a14m
 
 The script reads the v2 boot header, computes the offsets from the page size,
 extracts `prebuilt/kernel`, `dtbo.img`, `dtb.img`, unpacks the ramdisk
-(gzip/lz4/xz/lzma/bzip2) and puts `lib/modules/*` into
-`prebuilt/modules/`, updates the rc files and prints the
-MD5s. Requirements: `python3` and the corresponding compression tool.
+(gzip/lz4/xz/lzma/bzip2), puts `lib/modules/*` into `prebuilt/modules/`, saves
+the stock `init.recovery*.rc` and `recovery.fstab` under `tools/` for
+comparison, and prints the MD5s. It does **not** touch the customized files in
+`recovery/root/`; merge any stock rc changes manually. Requirements: `python3`
+and the corresponding compression tool (`lz4` for this device).
+
+Afterwards update the board name, `os_patch_level` and fallback fingerprint
+from the new header/props, as described in section 3.
 
 ---
 

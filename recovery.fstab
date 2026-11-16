@@ -3,7 +3,7 @@
 # MediaTek MT6768 - Android 15 / One UI 7
 #
 # Partition names and mount options come from the stock recovery ramdisk:
-#   system/etc/recovery.fstab  (build A145PXXSDDZH1)
+#   system/etc/recovery.fstab  (build A145PXXUEDZJ2)
 #
 # Format:
 #   <mount point>  <fs type>  <device>  [device2]  flags=<flag>;<flag>;...

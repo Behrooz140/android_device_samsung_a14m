@@ -3,6 +3,9 @@ out/
 *.log
 .ccache/
 
+# Stock recovery image used as the extraction source (large, not part of the tree)
+/recovery.img
+
 # Local diagnostic logs pulled from the phone (contain the device serial)
 twrp-diag/
 

@@ -11,6 +11,11 @@
 > **Advanced Wipe**، **Reboot → Recovery** و پایدارماندن تنظیمات TWRP
 > همگی درست کار می‌کنند.
 >
+> **prebuiltها به‌روزرسانی شدند:** درخت اکنون از `recovery.img` استوک
+> `A145PXXUEDZJ2` (پچ امنیتی `2026-10-05`، کرنل `6.6.118`) استفاده می‌کند.
+> نتایج بالا با بیلد ۳۰ روی فریمور قبلی (`A145PXXSDDZH1`) تأیید شده‌اند؛
+> بیلد ساخته‌شده از این درخت به‌روزشده هنوز باید روی گوشی تست شود.
+>
 > تنها محدودیت باقی‌مانده **رمزگشایی `/data`** است که از پارتیشن
 > `recovery` عملاً غیرممکن است (بخش ۹). این محدودیت ناشی از رفتار
 > بوت‌لودر است، نه اشکال درخت.
@@ -59,9 +64,9 @@
 | چیپست | MediaTek **MT6768** (Helio G80/G85) |
 | معماری | arm64-v8a + armeabi-v7a (`cortex-a55`) |
 | اندروید | ۱۵ / One UI 7 |
-| بیلد استوک | `A145PXXSDDZH1` / `AP3A.240905.015.A2` |
-| پچ امنیتی | `2026-07-05` |
-| فرگمنت | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXSDDZH1:user/release-keys` |
+| بیلد استوک | `A145PXXUEDZJ2` / `AP3A.240905.015.A2` |
+| پچ امنیتی | `2026-10-05` |
+| فرگمنت | `samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXUEDZJ2:user/release-keys` |
 | پارتیشن ریکاوری | `80,740,352` بایت (p40) |
 | پارتیشن `super` | `9,126,805,504` بایت (p46) |
 
@@ -79,9 +84,9 @@
 
 | فایل | اندازه | MD5 | توضیح |
 |---|---:|---|---|
-| `prebuilt/kernel` | 13,975,532 | `933b3c79216a10cd47b5c93ce16e10e9` | `Image.gz` استوک (gzip) |
-| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | DTB پایهٔ MT6768 |
-| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO برد `A14M MEA OPEN 00` |
+| `prebuilt/kernel` | 14,025,042 | `e4443063921c342441c04cb5ae4ee4ea` | `Image.gz` استوک (gzip)، کرنل `6.6.118-android15-8-abA145PXXUEDZJ2-4k` |
+| `prebuilt/dtb.img` | 182,127 | `ab5bacb2fe7589c25026e21ab718e5ef` | DTB پایهٔ MT6768 (بدون تغییر) |
+| `prebuilt/dtbo.img` | 79,837 | `08eba6a650cffcad2e8209398b135364` | DTBO برد `A14M MEA OPEN 00` (بدون تغییر) |
 | `prebuilt/modules/` | 25 MB | — | ۱۹۸ فایل `.ko` + `modules.alias`, `modules.dep`, `modules.softdep`, `modules.load.recovery` |
 
 هدر بوت خروجی باید **بایت‌به‌بایت** با استوک یکی باشد:
@@ -94,14 +99,14 @@ ramdisk addr   : 0x47C80000
 tags    addr   : 0x4BC80000
 dtb     addr   : 0x4BC80000
 cmdline        : bootopt=64S3,32N2,64N2 loop.max_part=7
-board name     : SRPVJ12A013
-os version     : 15.0.0 / 2026-07
+board name     : SRPVJ12A014
+os version     : 15.0.0 / 2026-10
 ramdisk format : LZ4 (legacy frame)
 ```
 
 این مقادیر در `BoardConfig.mk` صریحاً تنظیم شده‌اند
-(`--board SRPVJ12A013`, `--dtb_offset 0x0bc08000`,
-`--os_version 15.0.0 --os_patch_level 2026-07`, `BOARD_RAMDISK_USE_LZ4`).
+(`--board SRPVJ12A014`, `--dtb_offset 0x0bc08000`,
+`--os_version 15.0.0 --os_patch_level 2026-10`, `BOARD_RAMDISK_USE_LZ4`).
 تغییر هرکدام باعث می‌شود بوت‌لودر تصویر را رد کند یا کرنل ramdisk را
 پیدا نکند.
 
@@ -143,8 +148,10 @@ device/samsung/a14m/
 │   ├── system/etc/twrp.flags   ← ورودی‌های اختیاری (USB-OTG)
 │   └── system/tee/             ← پشتهٔ TEE سامسونگ برای تلاش رمزگشایی
 └── tools/
-    ├── extract_from_recovery.sh← استخراج مجدد prebuiltها
-    └── stock_recovery.fstab    ← fstab استوک برای مقایسه
+    ├── extract_from_recovery.sh         ← استخراج مجدد prebuiltها
+    ├── stock_init.recovery.mt6768.rc    ← init rc استوک برای مقایسه
+    ├── stock_init.recovery.samsung.rc   ← init rc استوک برای مقایسه
+    └── stock_recovery.fstab             ← fstab استوک برای مقایسه
 ```
 
 فایل‌های `recovery/root/...` با `PRODUCT_COPY_FILES` به
@@ -661,6 +668,31 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 
 ## ۱۲) تغییرات
 
+### به‌روزرسانی درخت — `A145PXXUEDZJ2` (هنوز بیلد نشده)
+
+prebuiltها از `recovery.img` استوک فریمور اکتبر ۲۰۲۶ (`A145PXXUEDZJ2`،
+پچ امنیتی `2026-10-05`) دوباره استخراج شدند:
+
+- `prebuilt/kernel` اکنون `6.6.118-android15-8-abA145PXXUEDZJ2-4k` است
+  (قبلاً `6.6.92-...-A145PXXSDDZH1`)، با ۱۴,۰۲۵,۰۴۲ بایت و MD5
+  `e4443063921c342441c04cb5ae4ee4ea`.
+- هر ۱۹۸ ماژول از رم‌دیسک جدید استخراج شدند و vermagic جدید را دارند؛
+  فهرست ماژول‌ها تغییری نکرده است. `touch_common_o22.ko` مثل قبل با
+  `tools/patch_touch_bootmode.py` دوباره پچ شد.
+- `prebuilt/dtb.img` و `prebuilt/dtbo.img` بایت‌به‌بایت با بیلد قبلی یکسان‌اند
+  (MD5 بدون تغییر)، و `recovery.fstab` و `init.recovery.samsung.rc` استوک هم
+  تغییری نکرده‌اند.
+- هدر بوت استوک اکنون برد `SRPVJ12A014` (قبلاً `SRPVJ12A013`) و سطح پچ
+  `2026-10` (قبلاً `2026-07`) دارد؛ بنابراین `BoardConfig.mk` به‌روز شد.
+- فرگمنت/توضیح fallback در `twrp_a14m.mk` اکنون `A145PXXUEDZJ2` است.
+- `tools/extract_from_recovery.sh` دیگر فایل‌های سفارشی
+  `recovery/root/init.recovery*.rc` را بازنویسی نمی‌کند؛ نسخهٔ استوک را در
+  `tools/stock_init.recovery*.rc` ذخیره می‌کند تا diff/merge شود.
+
+هنوز هیچ ایمیجی از این درخت به‌روزشده ساخته نشده است. قبل از اینکه این
+به‌روزرسانی «تست‌شده» اعلام شود، باید فلش شود و بوت، نمایشگر، تاچ،
+ذخیره‌سازی و تلاش رمزگشایی `/data` دوباره بررسی شوند.
+
 ### بیلد ۳۰ — `62856e9`
 
 مواردی که هنگام تست بیلد ۲۹ روی گوشی پیدا شد (لاگ‌های `twrp-diag`):
@@ -846,9 +878,15 @@ cd device/samsung/a14m
 
 اسکریپت هدر بوت v2 را می‌خواند، آفست‌ها را با page size حساب می‌کند،
 `prebuilt/kernel`, `dtbo.img`, `dtb.img` را بیرون می‌کشد، رم‌دیسک را
-(gzip/lz4/xz/lzma/bzip2) باز می‌کند و `lib/modules/*` را در
-`prebuilt/modules/` می‌ریزد، فایل‌های rc را به‌روز می‌کند و MD5ها را
-چاپ می‌کند. پیش‌نیاز: `python3` و ابزار فشرده‌سازی متناظر.
+(gzip/lz4/xz/lzma/bzip2) باز می‌کند، `lib/modules/*` را در
+`prebuilt/modules/` می‌ریزد، `init.recovery*.rc` و `recovery.fstab` استوک را
+برای مقایسه در `tools/` ذخیره می‌کند و MD5ها را چاپ می‌کند. فایل‌های سفارشی
+داخل `recovery/root/` را **دست نمی‌زند**؛ تغییرات rc استوک را باید دستی
+merge کنید. پیش‌نیاز: `python3` و ابزار فشرده‌سازی متناظر (`lz4` برای این
+دستگاه).
+
+پس از استخراج، نام برد، `os_patch_level` و فرگمنت fallback را از هدر/props
+جدید به‌روز کنید (بخش ۳).
 
 ---
 

@@ -30,6 +30,6 @@ PRODUCT_GMS_CLIENTID_BASE := android-samsung
 # BoardConfig.mk, issue #4), so these do not have to match the installed
 # firmware; they are what the ramdisk reports when the system cannot be read.
 PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRIVATE_BUILD_DESC="a14mnnxx-user 15 AP3A.240905.015.A2 A145PXXSDDZH1 release-keys"
+    PRIVATE_BUILD_DESC="a14mnnxx-user 15 AP3A.240905.015.A2 A145PXXUEDZJ2 release-keys"
 
-BUILD_FINGERPRINT := samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXSDDZH1:user/release-keys
+BUILD_FINGERPRINT := samsung/a14mnnxx/a14m:15/AP3A.240905.015.A2/A145PXXUEDZJ2:user/release-keys

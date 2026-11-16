@@ -3,7 +3,7 @@
 # MediaTek MT6768 (Helio G80/G85) - Android 15 (One UI 7)
 #
 # Everything in prebuilt/ was extracted from the stock recovery.img:
-#   A145PXXSDDZH1 / AP3A.240905.015.A2 / 2026-07-05
+#   A145PXXUEDZJ2 / AP3A.240905.015.A2 / 2026-10-05
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -74,11 +74,11 @@ BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 # Match the stock boot header exactly (mkbootimg defaults differ):
 #   stock dtb_addr = base + 0x0bc08000 = 0x4bc80000
-#   stock board/name = "SRPVJ12A013"
-#   stock os_version = 15.0.0, os_patch_level = 2026-07
+#   stock board/name = "SRPVJ12A014"
+#   stock os_version = 15.0.0, os_patch_level = 2026-10
 BOARD_MKBOOTIMG_ARGS += --dtb_offset 0x0bc08000
-BOARD_MKBOOTIMG_ARGS += --board SRPVJ12A013
-BOARD_MKBOOTIMG_ARGS += --os_version 15.0.0 --os_patch_level 2026-07
+BOARD_MKBOOTIMG_ARGS += --board SRPVJ12A014
+BOARD_MKBOOTIMG_ARGS += --os_version 15.0.0 --os_patch_level 2026-10
 
 TARGET_FORCE_PREBUILT_KERNEL := true
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
@@ -191,7 +191,7 @@ TW_EXCLUDE_APEX := true
 RECOVERY_SDCARD_ON_DATA := true
 
 # Build identity (issue #4): the values compiled into the recovery ramdisk from
-# twrp_a14m.mk are a snapshot of A145PXXSDDZH1, so they are wrong on other
+# twrp_a14m.mk are a snapshot of A145PXXUEDZJ2, so they are wrong on other
 # variants (SM-A145R) and on any A145P after its next firmware update.  Read the
 # real ones from the installed system at startup instead; if /system_root cannot
 # be mounted the compiled-in values in twrp_a14m.mk stay in effect.  Needs

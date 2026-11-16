@@ -14,9 +14,13 @@
 #   prebuilt/dtbo.img                     recovery_dtbo section
 #   prebuilt/dtb.img                      dtb section (Samsung wrapper included)
 #   prebuilt/modules/*                    lib/modules from the ramdisk
-#   recovery/root/init.recovery.mt6768.rc
-#   recovery/root/init.recovery.samsung.rc
+#   tools/stock_init.recovery.mt6768.rc   reference copy of the stock init rc
+#   tools/stock_init.recovery.samsung.rc  reference copy of the stock init rc
 #   tools/stock_recovery.fstab            reference copy of the stock fstab
+#
+# The customized files in recovery/root/init.recovery*.rc are NOT overwritten.
+# The stock copies are saved under tools/ so they can be diffed and merged
+# manually after a firmware update.
 #
 # Requires: python3, plus gzip/xz/lzma/bzip2/lz4 matching the ramdisk format.
 #
@@ -43,7 +47,6 @@ esac
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVICE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PREBUILT_DIR="$DEVICE_DIR/prebuilt"
-RECOVERY_ROOT="$DEVICE_DIR/recovery/root"
 
 for tool in python3; do
     command -v "$tool" >/dev/null 2>&1 || {
@@ -162,20 +165,19 @@ case "$magic" in
 esac
 
 echo "==> extracting ramdisk files"
-python3 - "$WORK/ramdisk.cpio" "$WORK/modules" "$RECOVERY_ROOT" "$SCRIPT_DIR" <<'PY'
+python3 - "$WORK/ramdisk.cpio" "$WORK/modules" "$SCRIPT_DIR" <<'PY'
 import os
 import stat
 import sys
 
-cpio_path, modules_out, recovery_root, script_dir = sys.argv[1:5]
+cpio_path, modules_out, script_dir = sys.argv[1:4]
 data = open(cpio_path, "rb").read()
 
 os.makedirs(modules_out, exist_ok=True)
-os.makedirs(recovery_root, exist_ok=True)
 
 KEEP_RC = {
-    "init.recovery.mt6768.rc": os.path.join(recovery_root, "init.recovery.mt6768.rc"),
-    "init.recovery.samsung.rc": os.path.join(recovery_root, "init.recovery.samsung.rc"),
+    "init.recovery.mt6768.rc": os.path.join(script_dir, "stock_init.recovery.mt6768.rc"),
+    "init.recovery.samsung.rc": os.path.join(script_dir, "stock_init.recovery.samsung.rc"),
     "system/etc/recovery.fstab": os.path.join(script_dir, "stock_recovery.fstab"),
 }
 
@@ -241,7 +243,7 @@ print("    other files       : %d" % others)
 PY
 
 echo "==> installing files"
-mkdir -p "$PREBUILT_DIR" "$RECOVERY_ROOT"
+mkdir -p "$PREBUILT_DIR"
 
 cp -f "$WORK/kernel" "$PREBUILT_DIR/kernel"
 if [ -s "$WORK/dtbo.img" ]; then
@@ -284,6 +286,10 @@ echo "    kernel        : $(md5sum "$PREBUILT_DIR/kernel" | awk '{print $1}')"
 [ -f "$PREBUILT_DIR/dtb.img" ] && \
     echo "    dtb.img       : $(md5sum "$PREBUILT_DIR/dtb.img" | awk '{print $1}')"
 echo "    modules       : $(find "$PREBUILT_DIR/modules" -name '*.ko' | wc -l) .ko files"
+echo "    stock rc      : tools/stock_init.recovery.*.rc (compare with recovery/root/)"
 echo
 echo "    Next: review 'git diff' and make sure prebuilt/kernel and"
 echo "    prebuilt/modules come from the same firmware build."
+echo "    Then update the build identity and boot-header values in"
+echo "    BoardConfig.mk and twrp_a14m.mk (board name, os_patch_level,"
+echo "    fingerprint) from the new stock image."
