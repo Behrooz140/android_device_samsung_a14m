@@ -5,17 +5,15 @@
 A dedicated device tree for building **TWRP 12.1** for the
 **Samsung Galaxy A14 4G — SM-A145P**, based on the phone's own stock recovery file.
 
-> **Status: build 30 has been tested on the phone and works.**
+> **Status: build 31 has been tested on the phone and works.**
 > Boot, display, touch, storage, the `super` logical partitions,
 > `Install Image` to logical partitions, their visibility in
 > **Advanced Wipe**, **Reboot → Recovery**, and persistent TWRP settings all
 > work correctly.
 >
-> **Prebuilts refreshed:** the tree now uses the stock `recovery.img` of
-> `A145PXXUEDZJ2` (security patch `2026-10-05`, kernel `6.6.118`). The results
-> above were verified with build 30 on the previous firmware
-> (`A145PXXSDDZH1`); a build from the refreshed tree still needs an on-device
-> test.
+> Build 31 is the first build from the refreshed prebuilts: the tree now uses
+> the stock `recovery.img` of `A145PXXUEDZJ2` (security patch `2026-10-05`,
+> kernel `6.6.118`), and it was verified on a phone running that firmware.
 >
 > The only remaining limitation is **`/data` decryption**, which is practically
 > impossible from the `recovery` partition (section 9). This limitation stems from
@@ -51,7 +49,7 @@ Repository: `https://github.com/Behrooz140/android_device_samsung_a14m`
 | APEX | Removed | `TW_EXCLUDE_APEX := true` |
 
 `Reboot → Fastboot`, vibration and the battery temperature were tested on the
-phone in build 23 and re-confirmed in build 30 with the MicroSD logs
+phone in build 23 and re-confirmed in builds 30 and 31
 (section 12).
 
 ---
@@ -669,7 +667,7 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 
 ## 12) Changes
 
-### Device tree refresh — `A145PXXUEDZJ2` (not built yet)
+### Device tree refresh — `A145PXXUEDZJ2` (build 31)
 
 The prebuilts were re-extracted from the stock recovery image that shipped with
 the October 2026 firmware (`A145PXXUEDZJ2`, security patch `2026-10-05`):
@@ -694,9 +692,10 @@ the October 2026 firmware (`A145PXXUEDZJ2`, security patch `2026-10-05`):
 The refreshed tree builds cleanly: run 31 produced the `build-31` release
 (`recovery.img`, 80,740,352 bytes, MD5 `611214f68090fea98a37b1108298efe0`) with
 board `SRPVJ12A014`, `os_patch_level 2026-10`, kernel
-`6.6.118-android15-8-abA145PXXUEDZJ2-4k` and all 198 new modules. It has not
-been flashed on the phone yet. Flash it and re-check boot, display, touch,
-storage and the `/data` decryption attempt before calling the update tested.
+`6.6.118-android15-8-abA145PXXUEDZJ2-4k` and all 198 new modules. Build 31 was
+flashed on a phone running `A145PXXUEDZJ2` and passed the on-device test:
+boot, display, touch and storage all work, and `/data` still fails to decrypt
+exactly as documented in section 9 (a bootloader limitation, not a regression).
 
 ### Build 30 — `62856e9`
 
