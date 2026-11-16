@@ -691,9 +691,12 @@ the October 2026 firmware (`A145PXXUEDZJ2`, security patch `2026-10-05`):
   `recovery/root/init.recovery*.rc`; it saves the stock copies as
   `tools/stock_init.recovery*.rc` for diffing/merging.
 
-No image has been built from this refreshed tree yet. Flash it and re-check
-boot, display, touch, storage and the `/data` decryption attempt before calling
-the update tested.
+The refreshed tree builds cleanly: run 31 produced the `build-31` release
+(`recovery.img`, 80,740,352 bytes, MD5 `611214f68090fea98a37b1108298efe0`) with
+board `SRPVJ12A014`, `os_patch_level 2026-10`, kernel
+`6.6.118-android15-8-abA145PXXUEDZJ2-4k` and all 198 new modules. It has not
+been flashed on the phone yet. Flash it and re-check boot, display, touch,
+storage and the `/data` decryption attempt before calling the update tested.
 
 ### Build 30 — `62856e9`
 
