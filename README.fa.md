@@ -566,11 +566,13 @@ cmdline میآورد (روی برخی SM-A145P و همینطور SM-A145R دید
 
 - از `adb shell twrp <command>` استفاده کنید — CLI مربوط به `twrp` حتی
   بدون تاچ هم کار میکند؛
-- از Terminal داخل TWRP امتحان کنید:
+- از Terminal داخل TWRP (بیلد ۳۲ به بعد) دستور
+  `/system/bin/usb_role.sh host` (یا `auto`) را اجرا کنید و سپس دستگاه OTG
+  را وصل کنید. با `/system/bin/usb_role.sh device` دوباره adb برمیگردد.
+  در بیلدهای قدیمیتر همان کار را میشود با
   `echo 2 > /sys/class/udc/musb-hdrc/device/cmode` (host) یا `echo 1`
-  (خودکار) و سپس دستگاه OTG را وصل کنید. بعد از آن `dmesg` و
-  `/proc/bus/input/devices` را بررسی کنید. تا وقتی کنترلر در حالت host
-  است adb قطع میشود؛ با `echo 3` به حالت device برمیگردد.
+  (خودکار) انجام داد. بعد از آن `dmesg` و `/proc/bus/input/devices` را
+  بررسی کنید. این تغییر موقتی است و با ریبوت دوباره حالت device برمیگردد.
 
 ---
 
@@ -654,7 +656,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
 | `E:Unhandled flag: 'inlinecrypt'` | توکن ناشناخته در fstab | `inlinecrypt` را به `/data` اضافه نکنید |
 | Odin روی `FAIL` می‌ماند | KG/RMM یا `vbmeta`/مدل اشتباه | بخش ۷.۱ |
-| ماوس/کیبورد USB-OTG در TWRP روشن نمیشود | `usb_restrict=1` باعث میشود `usb_restrict.sh` حالت `cmode=3` (device) را تحمیل کند و host و VBUS ۵ ولت خاموش باشد | طبیعی در بیلد فعلی (ایشو #۷، بخش ۸.۹)؛ از `adb shell twrp ...` استفاده کنید یا `cmode=2`/`1` را از Terminal امتحان کنید |
+| ماوس/کیبورد USB-OTG در TWRP روشن نمیشود | `usb_restrict=1` باعث میشود `usb_restrict.sh` حالت `cmode=3` (device) را تحمیل کند و host و VBUS ۵ ولت خاموش باشد | طبیعی در بیلد فعلی (ایشو #۷، بخش ۸.۹)؛ از `adb shell twrp ...` یا `/system/bin/usb_role.sh host` در بیلد ۳۲ به بعد استفاده کنید |
 
 اگر TWRP بالا می‌آید ولی مشکلی هست، اول `diag.txt` را از MicroSD
 بردارید؛ تقریباً همهٔ سؤال‌های «چرا» در همان یک فایل جواب دارند.
@@ -692,10 +694,12 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 
 ## ۱۲) تغییرات
 
-### مستندات و تشخیص (منتشرنشده)
+### مستندات، تشخیص و سوییچ نقش USB (منتشرنشده)
 
 - علائم پنل آفترمارکت HX83112F و محدودیت OTG ناشی از `usb_restrict=1`
   از ایشو #۷ مستند شدند (بخشهای ۸.۹ و ۱۰).
+- اسکریپت `/system/bin/usb_role.sh device|host|auto` برای حالت host موقتی
+  OTG اضافه شد، بدون اینکه پیشفرض امن بوت تغییر کند.
 - `twrp-diag.sh` اکنون نقش USB، مقدار `usb_restrict`، وضعیت Type-C و
   نتیجهٔ تلاش rebind تاچ Himax را هم ثبت میکند تا نیازی به رفت و برگشت
   دوباره نباشد.

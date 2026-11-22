@@ -567,11 +567,12 @@ VBUS output off, so a USB-OTG mouse or keyboard will not power up
 There is no GUI switch for this yet. Workarounds:
 
 - use `adb shell twrp <command>` — TWRP's `twrp` CLI works even without touch;
-- from TWRP's Terminal, test
-  `echo 2 > /sys/class/udc/musb-hdrc/device/cmode` (host) or `echo 1` (auto)
-  before plugging the OTG device. Check `dmesg` and `/proc/bus/input/devices`
-  afterwards. adb drops while the controller is in host mode; write `echo 3`
-  to return to device mode.
+- from TWRP's Terminal (build 32+), run `/system/bin/usb_role.sh host` (or
+  `auto`) before plugging the OTG device; `/system/bin/usb_role.sh device`
+  restores adb. On older builds the same can be done with
+  `echo 2 > /sys/class/udc/musb-hdrc/device/cmode` (host) or `echo 1` (auto).
+  Check `dmesg` and `/proc/bus/input/devices` afterwards. The switch is
+  temporary: a reboot always returns to device mode.
 
 ---
 
@@ -653,7 +654,7 @@ Consequences:
 | Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
 | `E:Unhandled flag: 'inlinecrypt'` | Unknown token in the fstab | Don't add `inlinecrypt` to `/data` |
 | Odin gets stuck at `FAIL` | KG/RMM or wrong `vbmeta`/model | Section 7.1 |
-| USB-OTG mouse/keyboard is not powered in TWRP | `usb_restrict=1` makes `usb_restrict.sh` force `cmode=3` (device), so host mode and 5 V VBUS are off | Expected with the current build (issue #7, section 8.9); use `adb shell twrp ...` or test `cmode=2`/`1` from TWRP Terminal |
+| USB-OTG mouse/keyboard is not powered in TWRP | `usb_restrict=1` makes `usb_restrict.sh` force `cmode=3` (device), so host mode and 5 V VBUS are off | Expected with the current build (issue #7, section 8.9); use `adb shell twrp ...`, or `/system/bin/usb_role.sh host` on build 32+ |
 
 If TWRP comes up but something is wrong, first grab `diag.txt` from the MicroSD;
 almost every "why" question is answered in that one file.
@@ -691,10 +692,12 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 
 ## 12) Changes
 
-### Documentation and diagnostics (unreleased)
+### Documentation, diagnostics and USB role switch (unreleased)
 
 - Documented the aftermarket HX83112F panel symptom and the `usb_restrict=1`
   OTG limitation from issue #7 (sections 8.9 and 10).
+- Added `/system/bin/usb_role.sh device|host|auto` for temporary OTG host
+  mode without changing the safe boot default.
 - `twrp-diag.sh` now also records the USB role, `usb_restrict`, the Type-C
   state and a Himax rebind attempt, so a report contains the evidence needed
   without another round trip.
