@@ -136,7 +136,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← تعریف langsdorff_decrypt و gk_verify
 │   ├── langsdorff_decrypt.cpp  ← بازکردن FBE v2 + متادیتا با KeyMint
 │   └── gk_verify.cpp           ← تأیید رمز با gatekeeper هیدل ۱.۰
-├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۲۰)
+├── patches/                    ← پچ‌های سورس TWRP (۰۰۰۱ تا ۰۰۲۱)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB، TEE، سرویس decrypt، diag
 │   ├── init.recovery.samsung.rc← آماده‌سازی efs
@@ -551,6 +551,27 @@ read-only علامت می‌زند (همان فلَگی که `fsflags=ro` را �
 برای ارسال، معمولاً همان `diag.txt` کافی است؛ اگر خالی نبود
 `recovery.log` هم مفید است.
 
+### ۸.۹) نقش USB و USB-OTG
+
+ریکاوری استوک در `on fs && property:ro.debuggable=0` مقدار `cmode=2`
+(host) را مینویسد. بیلد ۳۱ یک بیلد `eng` است، پس آن قانون اجرا نمیشود.
+در عوض، وقتی بوتلودر پارامتر `usb_notify_layer.usb_restrict=1` را در
+cmdline میآورد (روی برخی SM-A145P و همینطور SM-A145R دیده شده)،
+`init.recovery.mt6768.rc` اسکریپت `usb_restrict.sh` را اجرا میکند که
+`cmode=3` (اجبار حالت device) مینویسد. این همان چیزی است که adb/MTP را
+روی آن دستگاهها زنده نگه میدارد، ولی حالت host و خروجی ۵ ولت VBUS را هم
+خاموش میکند، بنابراین ماوس یا کیبورد USB-OTG روشن نمیشود (ایشو #۷).
+
+در حال حاضر کلید گرافیکی برای آن وجود ندارد. راهحلهای موقتی:
+
+- از `adb shell twrp <command>` استفاده کنید — CLI مربوط به `twrp` حتی
+  بدون تاچ هم کار میکند؛
+- از Terminal داخل TWRP امتحان کنید:
+  `echo 2 > /sys/class/udc/musb-hdrc/device/cmode` (host) یا `echo 1`
+  (خودکار) و سپس دستگاه OTG را وصل کنید. بعد از آن `dmesg` و
+  `/proc/bus/input/devices` را بررسی کنید. تا وقتی کنترلر در حالت host
+  است adb قطع میشود؛ با `echo 3` به حالت device برمیگردد.
+
 ---
 
 ## ۹) محدودیت رمزگشایی `/data`
@@ -589,7 +610,9 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 
 - TWRP نمی‌تواند `/data` رمزنگاری‌شده را باز کند؛ `/sdcard` هم در
   دسترس نیست.
-- برای بکاپ از **MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید.
+- برای بکاپ از **MicroSD** (`/external_sd`) یا USB-OTG استفاده کنید. روی
+  دستگاههایی که `usb_restrict=1` دارند، حالت host OTG در بیلد فعلی قطع
+  است (بخش ۸.۹).
 - بکاپ دیگر `/data` را از پیش انتخاب نمی‌کند (پچ ۰۰۱۹)، پس بکاپ بقیهٔ
   پارتیشن‌ها با شکست mount شدن `/data` خراب نمی‌شود (ایشو #۵).
 - تنظیمات خود TWRP (منطقهٔ زمانی، هپتیک، زمان خاموشی صفحه، پوشهٔ TWRP) در
@@ -612,7 +635,8 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 |---|---|---|
 | لوگوی سامسونگ و ریبوت | `vbmeta` استوک | بخش ۷.۲ |
 | صفحه سیاه ولی `adb devices` جواب می‌دهد | روشنایی/پنل یا ماژول | `diag.txt` و `TW_BRIGHTNESS_PATH` را بررسی کنید |
-| تاچ کار نمی‌کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
+| تاچ کار نمی کند | پنل/تاچ نسخهٔ دیگر | `diag.txt` و جایگزینی ماژول‌های همان فریمور |
+| پنل آفترمارکت HX83112F: `ID = 0, 0, 0` و `probe of spi2.0 failed with error -9` | ترتیب تأمین ولتاژ/ریست پنل (VCCD/VCCA/VSP/VSN یا TP_RST) با استوک فرق دارد؛ فایلهای فریمور موجودند | `diag.txt` را بگیرید؛ `regulator_summary` و نتیجهٔ rebind کردن `spi2.0` را هم جمعآوری کنید (ایشو #۷) |
 | `Reboot → Recovery` بدون لوگو و سریع | BCB نوشته نشده | `misc` را در `diag.txt` ببینید؛ نسخهٔ دارای پچ ۰۰۱۳ را فلش کنید |
 | `Reboot → Fastboot` باز TWRP را بالا می‌آورد یا هنگ می‌کند | init نمی‌تواند BCB بنویسد | پچ‌های ۰۰۱۴ و ۰۰۱۸؛ `rebootfastboot.log` را ببینید |
 | دمای CPU همیشه ۰ | خواندن `thermal_zone0` (شارژر) | پچ ۰۰۱۶؛ `diag.txt` را ببینید |
@@ -630,6 +654,7 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 | پارتیشن منطقی در Wipe نیست | `wipeingui` یا پچ ۰۰۱۲ | نسخهٔ بیلد ۲۰ به بعد را فلش کنید |
 | `E:Unhandled flag: 'inlinecrypt'` | توکن ناشناخته در fstab | `inlinecrypt` را به `/data` اضافه نکنید |
 | Odin روی `FAIL` می‌ماند | KG/RMM یا `vbmeta`/مدل اشتباه | بخش ۷.۱ |
+| ماوس/کیبورد USB-OTG در TWRP روشن نمیشود | `usb_restrict=1` باعث میشود `usb_restrict.sh` حالت `cmode=3` (device) را تحمیل کند و host و VBUS ۵ ولت خاموش باشد | طبیعی در بیلد فعلی (ایشو #۷، بخش ۸.۹)؛ از `adb shell twrp ...` استفاده کنید یا `cmode=2`/`1` را از Terminal امتحان کنید |
 
 اگر TWRP بالا می‌آید ولی مشکلی هست، اول `diag.txt` را از MicroSD
 بردارید؛ تقریباً همهٔ سؤال‌های «چرا» در همان یک فایل جواب دارند.
@@ -666,6 +691,15 @@ TZDEV ERR tz_iwsock_connect(624): Failed to connect socket root_task, error=-111
 ---
 
 ## ۱۲) تغییرات
+
+### مستندات و تشخیص (منتشرنشده)
+
+- علائم پنل آفترمارکت HX83112F و محدودیت OTG ناشی از `usb_restrict=1`
+  از ایشو #۷ مستند شدند (بخشهای ۸.۹ و ۱۰).
+- `twrp-diag.sh` اکنون نقش USB، مقدار `usb_restrict`، وضعیت Type-C و
+  نتیجهٔ تلاش rebind تاچ Himax را هم ثبت میکند تا نیازی به رفت و برگشت
+  دوباره نباشد.
+- محدودهٔ پچها در بخش ۴ اصلاح شد (۰۰۰۱ تا ۰۰۲۱).
 
 ### به‌روزرسانی درخت — `A145PXXUEDZJ2` (بیلد ۳۱)
 

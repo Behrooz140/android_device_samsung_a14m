@@ -15,6 +15,12 @@
 LOG=/tmp/twrp-diag
 mkdir -p "$LOG" 2>/dev/null
 
+# Regulator state is only visible through debugfs.  Mount it only for the
+# diagnostic run; the Himax VCCD/VCCA/VSP/VSN problem in issue #7 needs it.
+mkdir -p /sys/kernel/debug 2>/dev/null
+grep -q ' /sys/kernel/debug ' /proc/mounts 2>/dev/null || \
+    mount -t debugfs none /sys/kernel/debug 2>/dev/null
+
 # Give the kernel time to finish probing (module load is done by init's first
 # stage, but i2c/touch probes can be deferred) and TWRP/decrypt time to write
 # their logs. 45s also covers the ~30s tzdaemon -> keymint handshake.
@@ -78,6 +84,26 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== mounts =="
   cat /proc/mounts
   echo
+  echo "== USB role / OTG =="
+  # cmode: 0 none, 1 normal, 2 host, 3 device (see usb_restrict.sh).
+  echo "-- cmode: $(cat /sys/class/udc/musb-hdrc/device/cmode 2>/dev/null)"
+  echo "-- usb_restrict: $(cat /sys/module/usb_notify_layer/parameters/usb_restrict 2>/dev/null)"
+  for f in /sys/class/typec/*/data_role /sys/class/typec/*/power_role \
+           /sys/class/typec/*/port_type /sys/class/extcon/*/state; do
+    [ -r "$f" ] || continue
+    echo "-- $f: $(cat "$f" 2>/dev/null | tr '\n' ' ')"
+  done
+  echo "-- dmesg usb role"
+  dmesg 2>/dev/null | grep -iE 'usb_notify|extcon_usb|Type-C plug|cmode|host_id|usb_port_detach' | tail -60
+  echo
+  echo "== regulator summary (touch / panel rails) =="
+  if [ -r /sys/kernel/debug/regulator/regulator_summary ]; then
+    grep -iE 'vsp|vsn|vcc|lcd|bias|tp|3v3|himax' \
+      /sys/kernel/debug/regulator/regulator_summary 2>/dev/null | head -80
+  else
+    echo "debugfs regulator_summary not available"
+  fi
+  echo
   echo "== thermal zones =="
   for z in /sys/class/thermal/thermal_zone*; do
     [ -e "$z/temp" ] || continue
@@ -132,6 +158,20 @@ dmesg > "$LOG/dmesg.txt" 2>/dev/null
   echo "== touch related dmesg =="
   dmesg 2>/dev/null | grep -iE 'hx83112|himax|hbtp|touch|tpd|input:|firmware|panel' | tail -300
   echo
+  # Only try this when the probe already failed: rebinding a working panel
+  # would disturb a touchscreen that is currently in use (issue #7).
+  if [ -d /sys/bus/spi/drivers/himax_tp ] && \
+     dmesg 2>/dev/null | grep -q 'Could NOT find Himax Chipset'; then
+    echo "== Himax rebind attempt (spi2.0) =="
+    echo spi2.0 > /sys/bus/spi/drivers/himax_tp/unbind 2>/dev/null
+    sleep 1
+    echo spi2.0 > /sys/bus/spi/drivers/himax_tp/bind 2>/dev/null
+    sleep 1
+    dmesg 2>/dev/null | grep -iE 'HXTP|himax|spi2.0' | tail -100
+    echo "-- input devices after rebind"
+    cat /proc/bus/input/devices 2>/dev/null | grep -A6 -i 'himax\|hx83112'
+    echo
+  fi
   echo "== dmesg tail =="
   dmesg 2>/dev/null | tail -500
 } > "$LOG/diag.txt" 2>&1

@@ -137,7 +137,7 @@ device/samsung/a14m/
 │   ├── Android.bp              ← defines langsdorff_decrypt and gk_verify
 │   ├── langsdorff_decrypt.cpp  ← unlocks FBE v2 + metadata with KeyMint
 │   └── gk_verify.cpp           ← password verification with gatekeeper HIDL 1.0
-├── patches/                    ← TWRP source patches (0001 to 0020)
+├── patches/                    ← TWRP source patches (0001 to 0021)
 ├── recovery/root/
 │   ├── init.recovery.mt6768.rc ← USB, TEE, decrypt service, diag
 │   ├── init.recovery.samsung.rc← efs preparation
@@ -552,6 +552,27 @@ Important files:
 For sending, `diag.txt` alone is usually enough; if it isn't empty,
 `recovery.log` is useful too.
 
+### 8.9 USB role and USB-OTG
+
+The stock recovery writes `cmode=2` (host) in
+`on fs && property:ro.debuggable=0`. Build 31 is an `eng` build, so that rule
+does not run. Instead, when the bootloader passes
+`usb_notify_layer.usb_restrict=1` on the kernel command line (seen on some
+SM-A145P units as well as SM-A145R), `init.recovery.mt6768.rc` runs
+`usb_restrict.sh`, which writes `cmode=3` (force device mode). That is what
+keeps adb/MTP alive on those units, but it also turns host mode and the 5 V
+VBUS output off, so a USB-OTG mouse or keyboard will not power up
+(issue #7).
+
+There is no GUI switch for this yet. Workarounds:
+
+- use `adb shell twrp <command>` — TWRP's `twrp` CLI works even without touch;
+- from TWRP's Terminal, test
+  `echo 2 > /sys/class/udc/musb-hdrc/device/cmode` (host) or `echo 1` (auto)
+  before plugging the OTG device. Check `dmesg` and `/proc/bus/input/devices`
+  afterwards. adb drops while the controller is in host mode; write `echo 3`
+  to return to device mode.
+
 ---
 
 ## 9) `/data` decryption limitation
@@ -590,7 +611,8 @@ Consequences:
 
 - TWRP cannot unlock the encrypted `/data`; `/sdcard` is not
   available either.
-- Use **MicroSD** (`/external_sd`) or USB-OTG for backups.
+- Use **MicroSD** (`/external_sd`) or USB-OTG for backups. On units with
+  `usb_restrict=1`, OTG host mode is disabled by the current build (section 8.9).
 - Backup no longer preselects `/data` (patch 0019), so a backup of the other
   partitions is not aborted by the `/data` mount failure (issue #5).
 - TWRP's own settings (timezone, haptics, screen timeout, TWRP folder) are
@@ -613,6 +635,7 @@ Consequences:
 | Samsung logo and reboot | Stock `vbmeta` | Section 7.2 |
 | Black screen, but `adb devices` responds | Brightness/panel or module | Check `diag.txt` and `TW_BRIGHTNESS_PATH` |
 | Touch doesn't work | Different panel/touch revision | `diag.txt` and replacing the modules with those from the same firmware |
+| Aftermarket HX83112F panel: `ID = 0, 0, 0`, `probe of spi2.0 failed with error -9` | Panel power/reset sequencing (VCCD/VCCA/VSP/VSN or TP_RST) differs from stock; the firmware files are present | Check `diag.txt`; collect `regulator_summary` and the result of rebinding `spi2.0` (issue #7) |
 | `Reboot → Recovery` is quick and without a logo | BCB not written | Check `misc` in `diag.txt`; flash a version that includes patch 0013 |
 | `Reboot → Fastboot` brings TWRP up again or hangs | init cannot write the BCB | Patches 0014 and 0018; check `rebootfastboot.log` |
 | CPU temperature always 0 | Reading `thermal_zone0` (charger) | Patch 0016; check `diag.txt` |
@@ -630,6 +653,7 @@ Consequences:
 | Logical partition missing from Wipe | `wipeingui` or patch 0012 | Flash build 20 or later |
 | `E:Unhandled flag: 'inlinecrypt'` | Unknown token in the fstab | Don't add `inlinecrypt` to `/data` |
 | Odin gets stuck at `FAIL` | KG/RMM or wrong `vbmeta`/model | Section 7.1 |
+| USB-OTG mouse/keyboard is not powered in TWRP | `usb_restrict=1` makes `usb_restrict.sh` force `cmode=3` (device), so host mode and 5 V VBUS are off | Expected with the current build (issue #7, section 8.9); use `adb shell twrp ...` or test `cmode=2`/`1` from TWRP Terminal |
 
 If TWRP comes up but something is wrong, first grab `diag.txt` from the MicroSD;
 almost every "why" question is answered in that one file.
@@ -666,6 +690,15 @@ Numbers 0004 and 0006 were removed; their contents were merged into later patche
 ---
 
 ## 12) Changes
+
+### Documentation and diagnostics (unreleased)
+
+- Documented the aftermarket HX83112F panel symptom and the `usb_restrict=1`
+  OTG limitation from issue #7 (sections 8.9 and 10).
+- `twrp-diag.sh` now also records the USB role, `usb_restrict`, the Type-C
+  state and a Himax rebind attempt, so a report contains the evidence needed
+  without another round trip.
+- Fixed the patch range in section 4 (`0001 to 0021`).
 
 ### Device tree refresh — `A145PXXUEDZJ2` (build 31)
 
